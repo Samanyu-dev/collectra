@@ -1,65 +1,213 @@
-import Image from "next/image";
+import { getIntelligenceFeed } from '@/lib/intelligence/feed/service';
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth/session";
+import { timeAgo } from "@/lib/time-ago";
+import {
+  TrendingUp, Activity, CheckCircle, ArrowRight, ShieldAlert, BadgeCent,
+  Plus, Minus, Star, Shield, Heart, Upload, History,
+} from 'lucide-react';
+import Link from 'next/link';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+const EVENT_META: Record<string, { label: string; icon: any }> = {
+  CARD_ADDED: { label: 'Added', icon: Plus },
+  CARD_REMOVED: { label: 'Removed', icon: Minus },
+  FAVORITED: { label: 'Favorited', icon: Star },
+  UNFAVORITED: { label: 'Unfavorited', icon: Star },
+  VAULTED: { label: 'Vaulted', icon: Shield },
+  UNVAULTED: { label: 'Unvaulted', icon: Shield },
+  WISHLIST_ADDED: { label: 'Wishlisted', icon: Heart },
+  WISHLIST_REMOVED: { label: 'Un-wishlisted', icon: Heart },
+  IMPORT_COMPLETED: { label: 'Imported', icon: Upload },
+};
+
+export default function IntelligenceOSHome() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
+      {/* We use a React Server Component to fetch the feed data async */}
+      <IntelligenceFeed />
+    </div>
+  );
+}
+
+async function IntelligenceFeed() {
+  const user = await requireUser();
+
+  const [{ metrics, insights }, recentEvents, wishlistCount] = await Promise.all([
+    getIntelligenceFeed(user.id),
+    prisma.event.findMany({
+      where: { userId: user.id },
+      orderBy: { timestamp: 'desc' },
+      take: 6,
+      include: { instance: { include: { variant: { include: { card: true } } } } },
+    }),
+    prisma.wishlist.count({ where: { userId: user.id } }),
+  ]);
+
+  return (
+    <div className="max-w-[1200px] mx-auto space-y-12">
+
+      <div>
+        <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard</h1>
+        <p className="text-foreground/50 mt-1">Your collection, at a glance.</p>
+      </div>
+
+      {/* Level 1: Metrics Overview */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10 flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
+            <TrendingUp size={16} /> Portfolio Value
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-display font-bold">
+            ${metrics.portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10 flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
+            <Activity size={16} /> Collection Health
+          </div>
+          <div className="flex items-end gap-2">
+            <h1 className="text-4xl sm:text-5xl font-display font-bold text-green-400">{metrics.healthScore}</h1>
+            <span className="text-foreground/40 pb-2">/ 100</span>
+          </div>
+          <div className="mt-4 w-full h-2 bg-foreground/10 rounded-full overflow-hidden">
+            <div className="h-full bg-green-400 rounded-full" style={{ width: `${metrics.healthScore}%` }} />
+          </div>
         </div>
-      </main>
+
+        <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10 flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
+            <CheckCircle size={16} /> Completion DNA
+          </div>
+          <div className="flex items-end gap-2">
+            <h1 className="text-4xl sm:text-5xl font-display font-bold text-blue-400">{metrics.completionScore}</h1>
+            <span className="text-foreground/40 pb-2">/ 100</span>
+          </div>
+          <div className="mt-4 w-full h-2 bg-foreground/10 rounded-full overflow-hidden flex">
+            <div className="h-full bg-blue-400" style={{ width: `${metrics.completionScore}%` }} />
+          </div>
+        </div>
+      </section>
+
+      <div className="flex justify-end -mt-6">
+        <Link href="/statistics" className="inline-flex items-center gap-1.5 text-sm text-foreground/50 hover:text-foreground transition-colors">
+          View full statistics <ArrowRight size={14} />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Level 2: The Intelligence Stream (Insights) */}
+        <section className="lg:col-span-2">
+          <h2 className="text-2xl font-display font-medium mb-6">Actionable Insights</h2>
+
+          {insights.length === 0 ? (
+            <div className="p-12 rounded-3xl border border-foreground/10 border-dashed text-center text-foreground/40">
+              No active insights. Your collection is perfectly optimized.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {insights.map(insight => {
+                const payload = JSON.parse(insight.payload);
+
+                return (
+                  <div key={insight.id} className="relative p-6 rounded-3xl bg-foreground/5 border border-foreground/10 flex flex-col group hover:bg-foreground/10 transition-colors">
+                    <div className="absolute top-6 right-6">
+                      {insight.severity === 'WARNING' && <ShieldAlert size={20} className="text-yellow-500" />}
+                      {insight.severity === 'INFO' && <BadgeCent size={20} className="text-blue-400" />}
+                    </div>
+
+                    <div className="mt-2 mb-4">
+                      <span className="text-xs font-mono text-foreground/40 uppercase tracking-widest">{insight.type.replace('_', ' ')}</span>
+                    </div>
+
+                    {insight.type === 'SELL_DUPLICATE' && (
+                      <>
+                        <h3 className="text-2xl font-display font-bold mb-2">Sell Duplicates</h3>
+                        <p className="text-foreground/60 mb-6 flex-1">
+                          You have {payload.duplicateCount} duplicate cards.
+                          {payload.estimatedRecoveryValue != null && (
+                            <> Selling them could free up <strong className="text-foreground">${Math.round(payload.estimatedRecoveryValue).toLocaleString()}</strong> for new purchases.</>
+                          )}
+                        </p>
+                      </>
+                    )}
+
+                    {insight.type === 'SET_COMPLETION' && (
+                      <>
+                        <h3 className="text-2xl font-display font-bold mb-2">Finish {payload.projectName}</h3>
+                        <p className="text-foreground/60 mb-6 flex-1">
+                          You only need {payload.cardsRemaining} more cards to complete this set.
+                          {payload.estimatedCost != null && (
+                            <> Estimated cost to finish is <strong className="text-foreground">${Math.round(payload.estimatedCost).toLocaleString()}</strong>.</>
+                          )}
+                        </p>
+                      </>
+                    )}
+
+                    <Link
+                      href={insight.type === 'SELL_DUPLICATE' ? '/shelf' : insight.type === 'SET_COMPLETION' ? '/projects' : '/statistics'}
+                      className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    >
+                      Take Action <ArrowRight size={16} />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Level 3: Recent Activity + Wishlist */}
+        <aside className="space-y-6">
+          <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10">
+            <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
+              <History size={16} /> Recent Activity
+            </div>
+            {recentEvents.length === 0 ? (
+              <p className="text-sm text-foreground/40">Nothing yet — actions you take show up here.</p>
+            ) : (
+              <ul className="space-y-3">
+                {recentEvents.map((event) => {
+                  const meta = EVENT_META[event.type] ?? { label: event.type, icon: History };
+                  const Icon = meta.icon;
+                  const cardName = event.instance?.variant.card.name;
+                  return (
+                    <li key={event.id} className="flex items-center gap-3 text-sm">
+                      <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+                        <Icon size={13} className="text-foreground/60" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">
+                          <span className="text-foreground/50">{meta.label}</span>{cardName ? <> <span className="text-foreground font-medium">{cardName}</span></> : null}
+                        </p>
+                      </div>
+                      <span className="text-foreground/30 text-xs shrink-0">{timeAgo(event.timestamp)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <Link
+            href="/wishlist"
+            className="block p-6 rounded-3xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors group"
+          >
+            <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-3">
+              <Heart size={16} /> Wishlist
+            </div>
+            <div className="flex items-end justify-between">
+              <p className="text-3xl font-display font-bold">{wishlistCount}</p>
+              <span className="text-sm text-foreground/40 group-hover:text-foreground transition-colors flex items-center gap-1">
+                View <ArrowRight size={14} />
+              </span>
+            </div>
+          </Link>
+        </aside>
+      </div>
+
     </div>
   );
 }

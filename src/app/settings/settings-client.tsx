@@ -1,0 +1,166 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import {
+  User, Sun, Moon, Download, Upload, Shield, Layers, Heart, Target, Check, LogOut,
+} from 'lucide-react';
+import { useTheme } from '@/components/ui/theme-toggle';
+import { exportUserData } from '@/lib/actions/export-data';
+import { signOut } from '@/lib/actions/auth';
+
+interface Stats {
+  instanceCount: number;
+  wishlistCount: number;
+  activeProjectCount: number;
+  migrationCount: number;
+}
+
+function SettingsSection({ title, description, icon: Icon, children }: { title: string; description?: string; icon: any; children: React.ReactNode }) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-foreground/5 border border-foreground/10 rounded-3xl p-6 md:p-8 space-y-6"
+    >
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center shrink-0">
+          <Icon size={18} className="text-primary" aria-hidden="true" />
+        </div>
+        <div>
+          <h2 className="text-lg font-display font-bold text-foreground">{title}</h2>
+          {description && <p className="text-sm text-foreground/50 mt-0.5">{description}</p>}
+        </div>
+      </div>
+      {children}
+    </motion.section>
+  );
+}
+
+export function SettingsClient({ user, stats }: { user: { name: string | null; email: string } | null; stats: Stats }) {
+  const { isLight, mounted, setTheme } = useTheme();
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const data = await exportUserData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `collectra-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExported(true);
+      setTimeout(() => setExported(false), 2500);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-12 pb-32 space-y-8">
+      <div>
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight text-foreground">Settings</h1>
+        <p className="text-foreground/50 mt-2">Manage your account, appearance, and data.</p>
+      </div>
+
+      <SettingsSection title="Account" icon={User}>
+        {user ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-lg">
+                {(user.name || user.email)[0].toUpperCase()}
+              </div>
+              <div>
+                <p className="font-medium text-foreground">{user.name || 'Unnamed Collector'}</p>
+                <p className="text-sm text-foreground/50">{user.email}</p>
+              </div>
+            </div>
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors"
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </form>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground/50">No user found.</p>
+        )}
+      </SettingsSection>
+
+      <SettingsSection title="Appearance" description="Choose how Collectra looks on this device." icon={isLight ? Sun : Moon}>
+        {mounted && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setTheme(false)}
+              aria-pressed={!isLight}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-medium transition-colors ${
+                !isLight ? 'bg-primary text-primary-foreground border-primary' : 'bg-foreground/5 border-foreground/10 text-foreground/70 hover:bg-foreground/10'
+              }`}
+            >
+              <Moon size={16} /> Dark {!isLight && <Check size={14} />}
+            </button>
+            <button
+              onClick={() => setTheme(true)}
+              aria-pressed={isLight}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-medium transition-colors ${
+                isLight ? 'bg-primary text-primary-foreground border-primary' : 'bg-foreground/5 border-foreground/10 text-foreground/70 hover:bg-foreground/10'
+              }`}
+            >
+              <Sun size={16} /> Light {isLight && <Check size={14} />}
+            </button>
+          </div>
+        )}
+      </SettingsSection>
+
+      <SettingsSection title="Your Data" description="A snapshot of everything Collectra is tracking for you." icon={Layers}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatTile icon={Shield} label="Instances" value={stats.instanceCount} />
+          <StatTile icon={Heart} label="Wishlist" value={stats.wishlistCount} />
+          <StatTile icon={Target} label="Active Projects" value={stats.activeProjectCount} />
+          <StatTile icon={Upload} label="Imports Run" value={stats.migrationCount} />
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          {exported ? <Check size={16} className="text-green-400" /> : <Download size={16} />}
+          {exporting ? 'Preparing export…' : exported ? 'Downloaded' : 'Download my data (JSON)'}
+        </button>
+      </SettingsSection>
+
+      <SettingsSection title="Import & Migration" description="Bring in a collection from a spreadsheet or another tracker." icon={Upload}>
+        <Link
+          href="/migration"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors"
+        >
+          <Upload size={16} /> Go to Migration Engine
+        </Link>
+      </SettingsSection>
+
+      <SettingsSection title="Privacy" description="Where things stand today, plainly." icon={Shield}>
+        <p className="text-sm text-foreground/60 leading-relaxed">
+          Your collection is private by default — nothing you track here is visible to anyone else. Public profiles
+          and sharing aren't built yet; when they ship, they'll be opt-in.
+        </p>
+      </SettingsSection>
+    </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+  return (
+    <div className="p-4 rounded-2xl bg-foreground/5 border border-foreground/10 text-center space-y-1">
+      <Icon size={16} className="text-foreground/40 mx-auto" aria-hidden="true" />
+      <p className="text-xl font-display font-bold text-foreground">{value}</p>
+      <p className="text-[11px] text-foreground/50 uppercase tracking-wide">{label}</p>
+    </div>
+  );
+}

@@ -1,0 +1,764 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==========================================
+// 1. TAXONOMY & HIERARCHY
+// ==========================================
+
+model Universe {
+  id          String      @id @default(cuid())
+  name        String      @unique // e.g., TCG, Sports, Comics
+  description String?
+  franchises  Franchise[]
+}
+
+model Manufacturer {
+  id     String  @id @default(cuid())
+  name   String  @unique // e.g., Nintendo, Topps, Panini, Konami
+  brands Brand[]
+}
+
+model Brand {
+  id             String       @id @default(cuid())
+  name           String // e.g., Topps Chrome, Pokemon TCG
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id])
+  series         Series[]
+}
+
+model Franchise {
+  id         String   @id @default(cuid())
+  name       String   @unique // e.g., Pokemon, UEFA Champions League, Star Wars
+  universeId String
+  universe   Universe @relation(fields: [universeId], references: [id])
+  series     Series[]
+}
+
+model Series {
+  id          String    @id @default(cuid())
+  name        String // e.g., Sword & Shield, Chrome Sapphire, Match Attax
+  franchiseId String
+  franchise   Franchise @relation(fields: [franchiseId], references: [id])
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id])
+  sets        Set[]
+}
+
+model Set {
+  id           String @id @default(cuid())
+  name         String
+  seriesId     String
+  series       Series @relation(fields: [seriesId], references: [id])
+  printedTotal Int?
+
+  releases Release[]
+  products Product[]
+  cards    Card[]
+  projects Project[]
+
+  // Live Data Pipeline
+  checksum     String?
+  lastSyncedAt DateTime?
+}
+
+// ==========================================
+// 2. SEALED PRODUCTS (THE GRAPH)
+// ==========================================
+
+model Product {
+  id    String  @id @default(cuid())
+  name  String // e.g., Topps Chrome UEFA 2024 Hobby Box
+  setId String?
+  set   Set?    @relation(fields: [setId], references: [id])
+
+  weight           Float? // In grams
+  weightEvidenceId String?
+  weightEvidence   Evidence? @relation("ProductWeightEvidence", fields: [weightEvidenceId], references: [id])
+
+  // Components make up a Product
+  components ProductComponent[]
+
+  // Metadata
+  releases    Release[]
+  identifiers Identifier[]
+
+  // Product Graph Relationships
+  sourceRelations ProductRelationship[] @relation("ProductSource")
+  targetRelations ProductRelationship[] @relation("ProductTarget")
+
+  // Live Data Pipeline
+  checksum     String?
+  lastSyncedAt DateTime?
+
+  priceObservations PriceObservation[]
+  currentPrice      CurrentPrice?
+}
+
+model ProductRelationship {
+  id   String @id @default(cuid())
+  type String // e.g., SUCCESSOR, PREDECESSOR, ALTERNATIVE, BUNDLE
+
+  sourceId String
+  source   Product @relation("ProductSource", fields: [sourceId], references: [id])
+  targetId String
+  target   Product @relation("ProductTarget", fields: [targetId], references: [id])
+}
+
+// ==========================================
+// 3. PRODUCT COMPOSITION
+// ==========================================
+
+model ProductComponent {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  type      String // e.g., PACK, ACCESSORY, GUARANTEED_HIT
+  name      String // e.g., "151 Booster Pack", "65 Sleeves", "Snorlax Promo"
+  quantity  Int     @default(1)
+
+  // If this component is a Pack, it links to possible pulls
+  packId String?
+  pack   Pack?   @relation(fields: [packId], references: [id])
+
+  // If this component is a Guaranteed Hit, it links directly to a variant
+  guaranteedVariantId String?
+  guaranteedVariant   Variant? @relation("GuaranteedHit", fields: [guaranteedVariantId], references: [id])
+}
+
+model Pack {
+  id            String             @id @default(cuid())
+  name          String // e.g., "151 Booster Pack"
+  components    ProductComponent[]
+  possiblePulls PossiblePull[]
+}
+
+model PossiblePull {
+  id        String  @id @default(cuid())
+  packId    String
+  pack      Pack    @relation(fields: [packId], references: [id])
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  odds       Float // e.g. 1.5% chance
+  evidenceId String?
+  evidence   Evidence? @relation(fields: [evidenceId], references: [id])
+}
+
+// ==========================================
+// 4. THE CARD & VARIANT TREE
+// ==========================================
+
+model Card {
+  id     String @id @default(cuid())
+  name   String
+  number String
+  setId  String
+  set    Set    @relation(fields: [setId], references: [id])
+
+  // Base attributes
+  supertype  String? // Pokemon, Trainer, Energy, Player
+  subtypes   String? // Basic, VMAX, Rookie
+  hp         String?
+  rules      String?
+  flavorText String?
+
+  variants     Variant[]
+  wishlistedBy Wishlist[]
+
+  // Graph Relations
+  characters Character[] @relation("CardCharacters")
+  persons    Person[]    @relation("CardPersons")
+  teams      Team[]      @relation("CardTeams")
+  artists    Artist[]    @relation("CardArtists")
+
+  // Live Data Pipeline
+  checksum     String?
+  lastSyncedAt DateTime?
+}
+
+model Printing {
+  id       String    @id @default(cuid())
+  name     String    @unique // e.g., 1st Edition, Unlimited, Base
+  variants Variant[]
+}
+
+model Parallel {
+  id       String    @id @default(cuid())
+  name     String    @unique // e.g., Gold Refractor, Reverse Holo, Silver
+  variants Variant[]
+}
+
+model Variant {
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id])
+
+  printingId String?
+  printing   Printing? @relation(fields: [printingId], references: [id])
+
+  parallelId String?
+  parallel   Parallel? @relation(fields: [parallelId], references: [id])
+
+  // Specific physical attributes of this variant
+  isFoil   Boolean @default(false)
+  isAuto   Boolean @default(false)
+  isPatch  Boolean @default(false)
+  serialTo Int? // e.g. 50 (for /50)
+
+  instances      Instance[]
+  populations    Population[]
+  projectTargets ProjectTarget[]
+  guaranteedIn   ProductComponent[] @relation("GuaranteedHit")
+  possibleIn     PossiblePull[]
+  wishlistedBy   Wishlist[]
+
+  priceObservations PriceObservation[]
+  currentPrice      CurrentPrice?
+}
+
+// ==========================================
+// 5. UNIVERSAL BUILDING BLOCKS (THE MOAT)
+// ==========================================
+
+model Release {
+  id       String    @id @default(cuid())
+  date     DateTime?
+  country  String? // e.g., Japan, US
+  language String? // e.g., English, Japanese
+  edition  String? // e.g., 1st Edition
+  status   String? // e.g., AVAILABLE, DISCONTINUED, UPCOMING
+
+  setId     String?
+  set       Set?     @relation(fields: [setId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model Evidence {
+  id         String  @id @default(cuid())
+  sourceType String // e.g., OFFICIAL, COMMUNITY, ESTIMATED, RESEARCH
+  sourceUrl  String?
+  verified   Boolean @default(false)
+
+  pullOdds       PossiblePull[]
+  weightProducts Product[]      @relation("ProductWeightEvidence")
+}
+
+model Identifier {
+  id    String @id @default(cuid())
+  type  String // e.g., UPC, EAN, SKU, ASIN
+  value String @unique
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+// ==========================================
+// 6. ENTITIES (THE KNOWLEDGE GRAPH)
+// ==========================================
+
+model Character {
+  id    String @id @default(cuid())
+  name  String @unique
+  cards Card[] @relation("CardCharacters")
+}
+
+model Person {
+  id    String @id @default(cuid())
+  name  String @unique
+  teams Team[] @relation("PersonTeams")
+  cards Card[] @relation("CardPersons")
+}
+
+model Team {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  persons Person[] @relation("PersonTeams")
+  cards   Card[]   @relation("CardTeams")
+}
+
+model Artist {
+  id    String @id @default(cuid())
+  name  String @unique
+  cards Card[] @relation("CardArtists")
+}
+
+// ==========================================
+// 7. ASSETS & METADATA
+// ==========================================
+
+model Media {
+  id String @id @default(cuid())
+
+  originalHash String @unique
+  storageKey   String @unique // for provider="external" this IS the source URL (no download/redistribution)
+  bucket       String
+  provider     String // "local", "supabase", "external" (hotlink, not hosted by us)
+
+  status  String @default("PENDING") // PENDING, DOWNLOADING, OPTIMIZING, FAILED, READY, ARCHIVED
+  source  String // OFFICIAL, USER_UPLOAD, IMPORT, API, LICENSED, COMMUNITY, GENERATED
+  license String @default("UNKNOWN") // OFFICIAL, COMMUNITY, USER_UPLOAD, PUBLIC_DOMAIN, LICENSED, UNKNOWN
+
+  // Hybrid Media Source Model — priority order for picking a "primary" asset per entity:
+  // OFFICIAL > USER_UPLOAD > COMMUNITY (verified) > OPENLY_LICENSED > HOTLINK (external, temporary fallback)
+  sourceType         String  @default("HOTLINK") // OFFICIAL, USER_UPLOAD, COMMUNITY, OPENLY_LICENSED, HOTLINK, GENERATED
+  sourceName         String? // e.g. "kaggle:dataset-slug", "user:<id>", "tcdb", "pokemontcg-api"
+  sourceUrl          String? // origin URL, always populated for HOTLINK, informational otherwise
+  attribution        String?
+  uploadedByUserId   String?
+  uploadedBy         User?   @relation("MediaUploadedBy", fields: [uploadedByUserId], references: [id])
+  verificationStatus String  @default("PENDING") // PENDING, AUTO_VERIFIED, COMMUNITY_VERIFIED, OFFICIAL, REJECTED
+  perceptualHash     String?
+
+  dataSourceId String?
+  dataSource   DataSource? @relation(fields: [dataSourceId], references: [id])
+
+  // Base Dimensions
+  width    Int?
+  height   Int?
+  dpi      Int?
+  filesize Int?
+  mimeType String?
+
+  // Intelligent Metadata
+  blurhash     String?
+  averageColor String?
+  palette      String? // JSON array of dominant colors
+  brightness   Float?
+  contrast     Float?
+
+  // Verification
+  checksumVerified   Boolean @default(false)
+  dimensionsVerified Boolean @default(false)
+  visualVerified     Boolean @default(false)
+  moderatorVerified  Boolean @default(false)
+
+  variants    MediaVariant[]
+  attachments MediaAttachment[]
+}
+
+model MediaVariant {
+  id      String @id @default(cuid())
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  type       String // thumbnail, medium, large, webp, avif, hero_crop, scanner_crop
+  storageKey String
+
+  width         Int?
+  height        Int?
+  filesize      Int?
+  isWatermarked Boolean @default(false)
+}
+
+model MediaAttachment {
+  id      String @id @default(cuid())
+  mediaId String
+  media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  entityType String // Card, Product, Artist, Character, Person, Team, Project, User
+  entityId   String
+  // Placement usage: Homepage_Hero, Discovery, Card_Gallery, Thumbnail
+  // Physical image type (an entity may own many of these simultaneously — never assume one image per card):
+  // FRONT_SCAN, BACK_SCAN, OFFICIAL_ARTWORK, PRODUCT_IMAGE, PACK_IMAGE, BOX_IMAGE, CASE_IMAGE,
+  // GRADED_SLAB_FRONT, GRADED_SLAB_BACK, SIGNATURE_CLOSEUP, PATCH_CLOSEUP, PRINTING_ERROR, ALTERNATE_LANGUAGE
+  usage      String
+}
+
+model Population {
+  id            String   @id @default(cuid())
+  variantId     String
+  variant       Variant  @relation(fields: [variantId], references: [id])
+  certification String
+  grade         String
+  count         Int
+  updatedAt     DateTime @default(now())
+}
+
+model Certification {
+  id         String   @id @default(cuid())
+  company    String
+  grade      String
+  certNumber String?  @unique
+  instanceId String   @unique
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+}
+
+model Instance {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  condition     String
+  isGraded      Boolean        @default(false)
+  isVaulted     Boolean        @default(false)
+  isFavorite    Boolean        @default(false)
+  certification Certification?
+
+  purchasePrice Float?
+  purchaseDate  DateTime?
+  notes         String?
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  events Event[]
+}
+
+model User {
+  id            String    @id // no @default — must equal auth.users.id (see docs/adr/002)
+  email         String    @unique
+  name          String?
+  username      String?   @unique
+  usernameSetAt DateTime?
+  avatarUrl     String?
+  bio           String?
+  isPublic      Boolean   @default(false)
+  role          String    @default("USER") // USER | MODERATOR | CURATOR | ADMIN
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  instances              Instance[]
+  events                 Event[]
+  locations              Location[]
+  projects               Project[]
+  migrationSessions      MigrationSession[]
+  metrics                UserMetrics?
+  insights               Insight[]
+  wishlist               Wishlist[]
+  uploadedMedia          Media[]            @relation("MediaUploadedBy")
+  contributionsSubmitted Contribution[]     @relation("ContributionSubmittedBy")
+  contributionsReviewed  Contribution[]     @relation("ContributionReviewedBy")
+}
+
+model Event {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  instanceId String?
+  instance   Instance? @relation(fields: [instanceId], references: [id])
+
+  // Every mutation should emit one of these (non-exhaustive, extend as needed):
+  // CARD_ADDED, CARD_REMOVED, CARD_SCANNED, CARD_IMPORTED, FAVORITED, VAULTED, GRADED,
+  // PRICE_UPDATED, MEDIA_VERIFIED, PROJECT_COMPLETED, COLLECTION_IMPORTED, COLLECTION_CREATED,
+  // WISHLIST_ADDED, WISHLIST_REMOVED, TRADE_CREATED
+  type      String
+  timestamp DateTime @default(now())
+  metadata  String?
+}
+
+// ==========================================
+// 8. SOURCE-AGNOSTIC INGESTION & CONTRIBUTIONS
+// ==========================================
+
+model DataSource {
+  id           String    @id @default(cuid())
+  kind         String // KAGGLE, HUGGINGFACE, GITHUB, OFFICIAL_API, USER_IMPORT, COMMUNITY, CURATOR
+  identifier   String    @unique // e.g. "kaggle:owner/dataset-slug", "huggingface:org/dataset", "github:owner/repo"
+  name         String?
+  licenseType  String?
+  licenseUrl   String?
+  trustLevel   Int       @default(0) // higher = more trusted for auto-verification
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  media             Media[]
+  priceObservations PriceObservation[]
+  rateLimits        SourceRateLimit[]
+}
+
+model Contribution {
+  id         String  @id @default(cuid())
+  entityType String // Card, Product, Set, Media, ...
+  entityId   String? // null when proposing a brand-new entity
+  payload    String // JSON string of the proposed data/edit
+
+  status String @default("PENDING") // PENDING, APPROVED, REJECTED, APPLIED (graph-ingested by contribution-processor)
+
+  submittedByUserId String
+  submittedBy       User    @relation("ContributionSubmittedBy", fields: [submittedByUserId], references: [id])
+  reviewedByUserId  String?
+  reviewedBy        User?   @relation("ContributionReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+}
+
+model Wishlist {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  cardId    String?
+  card      Card?    @relation(fields: [cardId], references: [id])
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id])
+
+  priceAlert Float?
+  priority   String? // low, medium, high
+  notes      String?
+  addedAt    DateTime @default(now())
+}
+
+// ==========================================
+// 4. COLLECTOR WORKSPACE
+// ==========================================
+
+model Location {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  type      String // ROOM, CABINET, SHELF, BINDER, PAGE, POCKET
+  name      String
+  parentId  String?
+  parent    Location?  @relation("LocationToLocation", fields: [parentId], references: [id])
+  children  Location[] @relation("LocationToLocation")
+  instances Instance[]
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id])
+  name        String
+  type        String // SET_COMPLETION, CHARACTER_COLLECTION, GRADING_SUBMISSION, SELL_PILE
+  status      String // ACTIVE, COMPLETED, PAUSED
+  targetSetId String?
+  targetSet   Set?    @relation(fields: [targetSetId], references: [id])
+
+  targets ProjectTarget[]
+}
+
+model ProjectTarget {
+  id         String  @id @default(cuid())
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variantId  String
+  variant    Variant @relation(fields: [variantId], references: [id])
+  isMet      Boolean @default(false)
+  instanceId String?
+}
+
+// ==========================================
+// 5. COLLECTION MIGRATION ENGINE
+// ==========================================
+
+model MigrationSession {
+  id            String @id @default(cuid())
+  userId        String
+  user          User   @relation(fields: [userId], references: [id])
+  status        String // UPLOADED, ANALYZING, STAGED, COMMITTING, COMPLETED, CANCELLED
+  sourceAdapter String // "TCGPlayer_v1", "GenericCSV", "Collectr"
+
+  originalFileUrl String
+  checksum        String
+
+  totalRows      Int   @default(0)
+  matchedRows    Int   @default(0)
+  reviewRows     Int   @default(0)
+  unknownRows    Int   @default(0)
+  duplicates     Int   @default(0)
+  estimatedValue Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rows MigrationRow[]
+}
+
+model MigrationRow {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   MigrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  originalData String // JSON string of the raw row
+  status       String // STAGED_MATCH, STAGED_REVIEW, COMMITTED, IGNORED
+
+  confidenceScore   Float?
+  confidenceReasons String? // JSON string
+  matchCandidates   String? // JSON array of {variantId, confidence} — populated when a row is ambiguous (multiple possible variants)
+
+  resolvedVariantId String?
+  resolvedProductId String?
+
+  purchasePrice Float?
+  purchaseDate  DateTime?
+  condition     String?
+}
+
+// ==========================================
+// 6. INTELLIGENCE OS
+// ==========================================
+
+model UserMetrics {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  portfolioValue  Float @default(0)
+  costBasis       Float @default(0)
+  completionScore Int   @default(0)
+  healthScore     Int   @default(0)
+  duplicateCount  Int   @default(0)
+  liquidityScore  Float @default(0)
+
+  // Unrealized gain/loss only — ADR §12 explicitly scopes realized gains out of this phase.
+  unrealizedGain        Float  @default(0)
+  unrealizedGainPercent Float?
+
+  updatedAt DateTime @updatedAt
+}
+
+model Insight {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type     String // GRADE_CARD, SELL_DUPLICATE, SET_COMPLETION
+  category String // PORTFOLIO, HEALTH, MARKET
+  severity String // INFO, WARNING, CRITICAL
+  score    Float // 1-100 for ranking
+
+  payload      String // JSON containing the actual data
+  status       String // NEW, VIEWED, DISMISSED, ACTED
+  sourceEngine String // e.g. "recommendation-engine-v1"
+
+  generatedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  viewedAt    DateTime?
+  dismissedAt DateTime?
+  actedAt     DateTime?
+}
+
+// ==========================================
+// 7. LIVE DATA PIPELINE & SCHEDULER
+// ==========================================
+
+model SyncJob {
+  id       String  @id @default(cuid())
+  name     String // e.g., "pokemon-sync", "collectr-scraper"
+  payload  String?
+  status   String // PENDING, RUNNING, FAILED, RETRY, COMPLETED
+  priority Int     @default(0)
+
+  lockedAt  DateTime?
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+
+  retryCount   Int     @default(0)
+  errorMessage String?
+
+  logs SyncLog[]
+}
+
+model SyncLog {
+  id    String  @id @default(cuid())
+  jobId String
+  job   SyncJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  level    String // INFO, WARN, ERROR
+  message  String
+  metadata String? // JSON string for extra context
+
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// 9. PRICE ENGINE (docs/adr/003-price-engine-architecture.md)
+// ==========================================
+
+// Append-only — one row per observed price point, never mutated after insert.
+// The time series itself (§5 of the ADR); CurrentPrice below is a derived cache.
+model PriceObservation {
+  id        String   @id @default(cuid())
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  kind     String // LISTING | SOLD
+  price    Float // in original currency, unmodified
+  currency String // ISO 4217 as reported by the source
+  priceUsd Float // normalized at write time — every aggregate/read uses this, never `price` directly
+
+  sourceId    String
+  source      DataSource @relation(fields: [sourceId], references: [id])
+  sourceUrl   String?
+  externalRef String? // the source's own listing/transaction id, for dedup + debugging
+
+  confidence   Float   @default(1.0)
+  isOutlier    Boolean @default(false) // never deleted when flagged — kept for audit, excluded from aggregates
+  overriddenBy String? // Contribution.id, if a moderator correction superseded this observation's weight
+
+  observedAt DateTime // when the source says this was true
+  createdAt  DateTime @default(now()) // when Collectra ingested it — differs from observedAt for backfills
+
+  @@index([variantId, observedAt])
+  @@index([productId, observedAt])
+  @@index([sourceId, externalRef])
+}
+
+// Cheap current-price cache, rebuilt by the price-recompute-current job — never
+// hand-written by an adapter. Deliberately six independent, independently-nullable
+// concepts, not one number (ADR §6) — every price display reads this table, not
+// PriceObservation directly.
+model CurrentPrice {
+  id        String   @id @default(cuid())
+  variantId String?  @unique
+  variant   Variant? @relation(fields: [variantId], references: [id])
+  productId String?  @unique
+  product   Product? @relation(fields: [productId], references: [id])
+
+  marketPriceUsd    Float? // "estimated market value" — the headline number
+  lastSoldPriceUsd  Float? // most recent single SOLD observation
+  soldAverageUsd    Float? // mean of trailing-window SOLD observations
+  lowestListingUsd  Float?
+  highestListingUsd Float?
+  trend30dPercent   Float? // null until 60+ days of real observation history exist
+  trend90dPercent   Float?
+
+  observationCount    Int       @default(0)
+  contributingSources String? // JSON array of DataSource names/ids folded into this aggregate
+  latestObservationAt DateTime? // freshest observedAt among contributing observations — the "Last updated" signal
+  confidence          Float     @default(0) // 0–1, see ADR §8
+  confidenceLabel     String    @default("NO_DATA") // HIGH | MEDIUM | LOW | NO_DATA
+  computedAt          DateTime  @updatedAt // job-run time, not data freshness
+}
+
+// Not a live-rate-API integration — a small table refreshed at whatever cadence
+// is convenient (monthly is plenty; card prices don't move on intraday FX noise).
+model ExchangeRate {
+  id       String   @id @default(cuid())
+  currency String // e.g. "EUR"
+  usdRate  Float // 1 <currency> = usdRate USD
+  asOf     DateTime
+
+  @@unique([currency, asOf])
+}
+
+// Token-bucket rate limiting per source, stored in Postgres (not in-process
+// memory) because the worker can run as multiple instances/invocations.
+// One source can have multiple simultaneous windows (e.g. per-minute AND
+// per-day, matching the Pokémon TCG API's real documented tiers) — enforced
+// in src/lib/pricing/rate-limit.ts, checked before every outbound request.
+model SourceRateLimit {
+  id       String     @id @default(cuid())
+  sourceId String
+  source   DataSource @relation(fields: [sourceId], references: [id])
+
+  requestCount  Int      @default(0) // requests made in the current window
+  windowStartAt DateTime @default(now())
+  maxPerWindow  Int      @default(60)
+  windowSeconds Int      @default(60)
+
+  @@unique([sourceId, windowSeconds])
+}
