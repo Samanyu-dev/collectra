@@ -1,17 +1,25 @@
-import { Skeleton, CardGridSkeleton } from "@/components/ui/skeleton";
+import { Skeleton, CardGridSkeleton, StatTilesSkeleton } from "@/components/ui/skeleton";
 
 export default function ShelfLoading() {
   return (
     <div className="min-h-screen bg-background pb-48">
-      <div className="pt-32 px-6 md:px-12 max-w-[1400px] mx-auto">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-          <div className="space-y-3">
-            <Skeleton className="h-14 w-64" />
-            <Skeleton className="h-4 w-56" />
+      <div className="pt-32 px-6 md:px-12 max-w-[1600px] mx-auto space-y-8">
+        <Skeleton className="h-14 w-64" />
+
+        <StatTilesSkeleton count={6} />
+
+        <Skeleton className="h-9 w-full max-w-md rounded-full" />
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 min-w-0">
+            <CardGridSkeleton count={12} />
           </div>
-          <Skeleton className="h-20 w-48 rounded-2xl" />
+          <div className="w-full lg:w-[320px] shrink-0 space-y-4" aria-busy="true" aria-label="Loading sidebar">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-40 rounded-2xl" />
+            <Skeleton className="h-40 rounded-2xl" />
+          </div>
         </div>
-        <CardGridSkeleton count={12} />
       </div>
     </div>
   );

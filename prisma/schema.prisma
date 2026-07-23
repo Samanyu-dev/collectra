@@ -419,6 +419,14 @@ model Instance {
   scanMediaId String?
   scanMedia   Media?  @relation("InstanceScanMedia", fields: [scanMediaId], references: [id])
 
+  // Collection V2 (docs/adr/... Collection redesign) — row-insertion time, not
+  // acquisition time. Scanner/Manual/Import can all create rows (an import can
+  // create hundreds in one burst), so anything derived from this must say
+  // "Added", never "Collected". `purchaseDate` above remains the separate,
+  // sparse, user-supplied "when I bought it" signal — never conflate the two.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   events   Event[]
   listings Listing[]
 }

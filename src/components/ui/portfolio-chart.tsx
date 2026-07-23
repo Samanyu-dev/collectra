@@ -31,7 +31,7 @@ export function PortfolioChart({ data }: { data: { date: string, value: number }
                 return (
                   <div className="bg-background/80 backdrop-blur border border-foreground/10 px-4 py-2 rounded-xl shadow-2xl">
                     <p className="text-foreground/60 text-xs mb-1 font-mono">{payload[0].payload.date}</p>
-                    <p className="text-xl font-mono text-foreground">₹{Number(payload[0].value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl font-mono text-foreground">${Number(payload[0].value).toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
                   </div>
                 );
               }

@@ -20,9 +20,10 @@ const SHIPS_TO_OPTIONS = ["Worldwide", "Europe", "India", "Local pickup"];
 
 type Step = "pick" | "details" | "photos" | "done";
 
-export function NewListingClient({ instances }: { instances: InstanceOption[] }) {
-  const [step, setStep] = useState<Step>("pick");
-  const [selected, setSelected] = useState<InstanceOption | null>(null);
+export function NewListingClient({ instances, initialInstanceId }: { instances: InstanceOption[]; initialInstanceId?: string }) {
+  const preselected = initialInstanceId ? instances.find((i) => i.id === initialInstanceId) ?? null : null;
+  const [step, setStep] = useState<Step>(preselected ? "details" : "pick");
+  const [selected, setSelected] = useState<InstanceOption | null>(preselected);
   const [price, setPrice] = useState("");
   const [shipsTo, setShipsTo] = useState(SHIPS_TO_OPTIONS[0]);
   const [description, setDescription] = useState("");

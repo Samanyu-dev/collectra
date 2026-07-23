@@ -5,8 +5,10 @@ import { NewListingClient } from "./new-listing-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewListingPage() {
+export default async function NewListingPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const user = await requireUser();
+  const searchParams = await props.searchParams;
+  const initialInstanceId = typeof searchParams.instanceId === "string" ? searchParams.instanceId : undefined;
 
   const instances = await prisma.instance.findMany({
     where: {
@@ -29,5 +31,5 @@ export default async function NewListingPage() {
     imageUrl: images.get(i.variant.card.id)?.[0]?.url ?? null,
   }));
 
-  return <NewListingClient instances={items} />;
+  return <NewListingClient instances={items} initialInstanceId={initialInstanceId} />;
 }
