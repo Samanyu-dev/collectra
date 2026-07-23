@@ -42,6 +42,8 @@ export class GraphBuilder {
   private characterCache = new Map<string, string>();
   private printingCache = new Map<string, string>();
   private parallelCache = new Map<string, string>();
+  private personCache = new Map<string, string>();
+  private insertCache = new Map<string, string>();
 
   async getOrCreateUniverse(name: string): Promise<string> {
     if (this.universeCache.has(name)) return this.universeCache.get(name)!;
@@ -187,14 +189,48 @@ export class GraphBuilder {
     return res.id;
   }
 
-  async getOrCreateTeam(name: string): Promise<string> {
+  async getOrCreateTeam(name: string, opts?: { type?: "CLUB" | "NATIONAL"; country?: string }): Promise<string> {
     if (this.teamCache.has(name)) return this.teamCache.get(name)!;
     const res = await upsertSafe(
-      () => prisma.team.upsert({ where: { name }, update: {}, create: { name } }),
+      () =>
+        prisma.team.upsert({
+          where: { name },
+          update: {},
+          create: { name, type: opts?.type ?? "CLUB", country: opts?.country },
+        }),
       () => prisma.team.findUnique({ where: { name } })
     );
     this.teamCache.set(name, res.id);
     return res.id;
+  }
+
+  /** Football database foundation — players as real linked entities (Person + Card.persons), not just free-text Card.name strings. */
+  async getOrCreatePerson(name: string): Promise<string> {
+    if (this.personCache.has(name)) return this.personCache.get(name)!;
+    const res = await upsertSafe(
+      () => prisma.person.upsert({ where: { name }, update: {}, create: { name } }),
+      () => prisma.person.findUnique({ where: { name } })
+    );
+    this.personCache.set(name, res.id);
+    return res.id;
+  }
+
+  /** Separates true insert/subset categories from color/foil Parallels — see the Insert model's doc comment in schema.prisma. */
+  async getOrCreateInsert(name: string, setId: string, description?: string): Promise<string> {
+    const key = `${name}-${setId}`;
+    if (this.insertCache.has(key)) return this.insertCache.get(key)!;
+    let insert = await prisma.insert.findFirst({ where: { name, setId } });
+    if (!insert) {
+      try {
+        insert = await prisma.insert.create({ data: { name, setId, description } });
+      } catch (e: any) {
+        if (!isUniqueConstraintError(e)) throw e;
+        insert = await prisma.insert.findFirst({ where: { name, setId } });
+        if (!insert) throw e;
+      }
+    }
+    this.insertCache.set(key, insert.id);
+    return insert.id;
   }
 }
 

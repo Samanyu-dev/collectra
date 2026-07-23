@@ -58,14 +58,65 @@ model Set {
   series       Series @relation(fields: [seriesId], references: [id])
   printedTotal Int?
 
+  // Football database foundation — a product release typically maps to one
+  // competition+season; card-level override isn't needed at this scale.
+  competitionId String?
+  competition   Competition? @relation(fields: [competitionId], references: [id])
+  seasonId      String?
+  season        Season?      @relation(fields: [seasonId], references: [id])
+
   releases Release[]
   products Product[]
   cards    Card[]
   projects Project[]
+  inserts  Insert[]
 
   // Live Data Pipeline
   checksum     String?
   lastSyncedAt DateTime?
+}
+
+// e.g. "Premier League", "UEFA Champions League", "FIFA World Cup" — distinct
+// from Franchise (which stays the broad sport/IP grouping, e.g. "Football
+// (Soccer)"). Not populated retroactively on existing Sets — nullable so
+// backfill is optional, not a migration blocker.
+model Competition {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  type    String // LEAGUE | CUP | INTERNATIONAL_TOURNAMENT
+  country String?
+
+  sets Set[]
+}
+
+// e.g. "2025-26" or "2026" — kept as a simple label, not forced into a
+// startDate/endDate range at this stage since most sources only ever state
+// the label itself.
+model Season {
+  id        String    @id @default(cuid())
+  label     String    @unique
+  startDate DateTime?
+  endDate   DateTime?
+
+  sets Set[]
+}
+
+// Separates true insert/subset categories (e.g. "Man of the Match Wildcard",
+// "Heritage") from true color/foil Parallels (e.g. "Rainbow Foil") — the two
+// were previously conflated onto the single Parallel model, which is what
+// caused the Match Attax insert-card data-quality gap the football database
+// audit found. A Variant can be in an Insert AND have a Parallel at once
+// (e.g. a Rainbow Foil parallel of a Heritage insert).
+model Insert {
+  id          String  @id @default(cuid())
+  name        String
+  setId       String
+  set         Set     @relation(fields: [setId], references: [id])
+  description String?
+
+  variants Variant[]
+
+  @@index([setId])
 }
 
 // ==========================================
@@ -206,11 +257,17 @@ model Variant {
   parallelId String?
   parallel   Parallel? @relation(fields: [parallelId], references: [id])
 
+  // Insert/subset category (e.g. "Man of the Match Wildcard") — distinct
+  // from parallelId above (a true color/foil variant); see the Insert model.
+  insertId String?
+  insert   Insert? @relation(fields: [insertId], references: [id])
+
   // Specific physical attributes of this variant
   isFoil   Boolean @default(false)
   isAuto   Boolean @default(false)
   isPatch  Boolean @default(false)
-  serialTo Int? // e.g. 50 (for /50)
+  isRelic  Boolean @default(false) // a plain jersey-swatch relic isn't necessarily a "patch" (a specific higher-end relic sub-type) — no flag existed for the general case until now
+  serialTo Int? // e.g. 50 (for /50) — the catalog-level print-run denominator; NOT the individual number stamped on one physical copy (see Instance.serialNumber)
 
   instances      Instance[]
   populations    Population[]
@@ -280,6 +337,12 @@ model Person {
 model Team {
   id      String   @id @default(cuid())
   name    String   @unique
+  // Club vs. national side — a player already has both via the many-to-many
+  // relation to Person, so this stays one Team model, just tagged so the two
+  // are queryable instead of undifferentiated (default keeps existing rows
+  // valid without a backfill being a migration blocker).
+  type    String   @default("CLUB") // CLUB | NATIONAL
+  country String?
   persons Person[] @relation("PersonTeams")
   cards   Card[]   @relation("CardTeams")
 }
@@ -409,6 +472,11 @@ model Instance {
   purchasePrice Float?
   purchaseDate  DateTime?
   notes         String?
+
+  // The number actually stamped on THIS physical copy (e.g. "23") — distinct
+  // from Variant.serialTo above, which is the catalog-level print-run
+  // denominator (e.g. /99). Never conflate the two.
+  serialNumber String?
 
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id])

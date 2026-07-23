@@ -4,19 +4,30 @@ import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter } from "../
 const prisma = new PrismaClient();
 
 // Hybrid Media Source priority order — see prisma/schema.prisma Media.sourceType docs.
+// Football database foundation (Scanner-first): a verified real photo of the
+// actual physical card outranks even official promotional art, since it's
+// provably the real thing rather than generic stock imagery. Order:
+// USER_SCAN_VERIFIED > USER_SCAN_PENDING > OFFICIAL > COMMUNITY(verified) >
+// OPENLY_LICENSED > HOTLINK/COMMUNITY(unverified) > GENERATED.
 const SOURCE_TYPE_PRIORITY: Record<string, number> = {
-  OFFICIAL: 0,
-  USER_UPLOAD: 1,
-  COMMUNITY: 2,
-  OPENLY_LICENSED: 3,
-  HOTLINK: 4,
-  GENERATED: 5,
+  USER_UPLOAD: 0, // split into verified(0)/pending(1) in rank() below
+  OFFICIAL: 2,
+  COMMUNITY: 3,
+  OPENLY_LICENSED: 4,
+  HOTLINK: 5,
+  GENERATED: 6,
 };
 
-/** Only considers COMMUNITY-sourced media "trustworthy enough" once verified. */
+const VERIFIED_STATUSES = new Set(["AUTO_VERIFIED", "COMMUNITY_VERIFIED", "OFFICIAL"]);
+
+/** Only considers COMMUNITY-sourced media "trustworthy enough" once verified; user scans split into verified/pending tiers. */
 function rank(media: Media): number {
+  if (media.sourceType === "USER_UPLOAD") {
+    const verified = media.moderatorVerified || media.visualVerified || VERIFIED_STATUSES.has(media.verificationStatus);
+    return verified ? 0 : 1;
+  }
   let base = SOURCE_TYPE_PRIORITY[media.sourceType] ?? 99;
-  if (media.sourceType === "COMMUNITY" && media.verificationStatus !== "COMMUNITY_VERIFIED" && media.verificationStatus !== "OFFICIAL") {
+  if (media.sourceType === "COMMUNITY" && !VERIFIED_STATUSES.has(media.verificationStatus)) {
     base += 10; // unverified community submissions sort behind everything else
   }
   return base;

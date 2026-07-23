@@ -19,6 +19,7 @@ export function ScanClient() {
   const [result, setResult] = useState<IdentifyScanResponse | null>(null);
   const [selected, setSelected] = useState<EnrichedCandidate | null>(null);
   const [condition, setCondition] = useState(CONDITIONS[1]);
+  const [contributeToPublicCatalog, setContributeToPublicCatalog] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [priceData, setPriceData] = useState<PriceTagData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +31,7 @@ export function ScanClient() {
     setResult(null);
     setSelected(null);
     setCondition(CONDITIONS[1]);
+    setContributeToPublicCatalog(false);
     setErrorMessage(null);
     setPriceData(null);
   }
@@ -62,7 +64,7 @@ export function ScanClient() {
     if (!mediaId || !selected) return;
     setStep("confirming");
     try {
-      const { price } = await confirmScanMatch({ mediaId, variantId: selected.variantId, condition });
+      const { price } = await confirmScanMatch({ mediaId, variantId: selected.variantId, condition, contributeToPublicCatalog });
       setPriceData(price);
       setStep("success");
     } catch (e) {
@@ -237,6 +239,18 @@ export function ScanClient() {
                 </button>
               ))}
             </div>
+            <label className="flex items-start gap-2.5 pt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contributeToPublicCatalog}
+                onChange={(e) => setContributeToPublicCatalog(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+              />
+              <span className="text-xs text-foreground/60">
+                Contribute this photo to the public catalog? Real card photos help every collector — it'll be reviewed before it's shown to others.
+                Leave unchecked to keep it private to your own collection.
+              </span>
+            </label>
           </div>
         )}
       </main>

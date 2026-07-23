@@ -147,11 +147,17 @@ export async function identifyScan(mediaId: string): Promise<IdentifyScanRespons
  * variantId — writes a normal Instance (same table every other "add to
  * collection" path writes to), tagged with scanMediaId for real provenance,
  * plus the CARD_SCANNED event the schema already anticipated.
+ *
+ * Football database foundation (Scanner-first image acquisition): if the
+ * user opts in, this scan can also become a real, moderated public catalog
+ * image for the card — not just private provenance for their own Instance.
+ * Declining leaves everything exactly as it was before this option existed.
  */
 export async function confirmScanMatch(params: {
   mediaId: string;
   variantId: string;
   condition: string;
+  contributeToPublicCatalog?: boolean;
 }): Promise<{ instanceId: string; price: PriceTagData | null }> {
   const user = await requireUserForAction();
 
@@ -178,6 +184,26 @@ export async function confirmScanMatch(params: {
       metadata: JSON.stringify({ variantId: params.variantId, mediaId: params.mediaId }),
     },
   });
+
+  if (params.contributeToPublicCatalog) {
+    // Makes the scan visible to getImagesForEntities("Card", ...) — i.e. a
+    // real candidate for the card's public-facing image, not just this
+    // user's own private Instance view. Starts unverified (PENDING); a
+    // moderator (or the automated quality gate in the media pipeline)
+    // promotes it from there — see contribution-processor.ts.
+    await prisma.mediaAttachment
+      .create({ data: { mediaId: params.mediaId, entityType: "Card", entityId: variant.cardId, usage: "FRONT_SCAN" } })
+      .catch(() => {}); // idempotent-enough: a duplicate attachment for the same scan is harmless, not worth a pre-check race
+    await prisma.contribution.create({
+      data: {
+        entityType: "Media",
+        entityId: params.mediaId,
+        payload: JSON.stringify({ promote: true }),
+        status: "PENDING",
+        submittedByUserId: user.id,
+      },
+    });
+  }
 
   // ADR 004 §9 "optional immediate pricing refresh" — best-effort: a stale
   // rate limit or missing Tier 0 source must not fail the scan itself, since

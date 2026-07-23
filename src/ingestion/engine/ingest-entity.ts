@@ -23,6 +23,16 @@ export interface CatalogCardEntity {
   imageUrl?: string;
   parallel?: string;
   serialTo?: number;
+
+  // Football database foundation additions — all optional, no effect on
+  // existing Pokemon/MTG/etc. callers that never set them.
+  team?: string; // club team
+  nationalTeam?: string;
+  insert?: string; // insert/subset category name, e.g. "Man of the Match Wildcard" — distinct from parallel
+  isFoil?: boolean;
+  isAuto?: boolean;
+  isPatch?: boolean;
+  isRelic?: boolean;
 }
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -67,14 +77,32 @@ export async function ingestCatalogCard(entity: CatalogCardEntity, sourceIdentif
     },
   });
 
+  if (entity.team) {
+    const teamId = await builder.getOrCreateTeam(entity.team, { type: "CLUB" });
+    await prisma.card.update({ where: { id: card.id }, data: { teams: { connect: { id: teamId } } } }).catch(() => {});
+  }
+  if (entity.nationalTeam) {
+    const nationalTeamId = await builder.getOrCreateTeam(entity.nationalTeam, { type: "NATIONAL" });
+    await prisma.card.update({ where: { id: card.id }, data: { teams: { connect: { id: nationalTeamId } } } }).catch(() => {});
+  }
   const parallelId = entity.parallel ? await builder.getOrCreateParallel(entity.parallel) : undefined;
+  const insertId = entity.insert ? await builder.getOrCreateInsert(entity.insert, setId) : undefined;
 
   const existingVariant = await prisma.variant.findFirst({
-    where: { cardId: card.id, parallelId: parallelId ?? null },
+    where: { cardId: card.id, parallelId: parallelId ?? null, insertId: insertId ?? null },
   });
   if (!existingVariant) {
     await prisma.variant.create({
-      data: { cardId: card.id, parallelId, serialTo: entity.serialTo },
+      data: {
+        cardId: card.id,
+        parallelId,
+        insertId,
+        serialTo: entity.serialTo,
+        isFoil: entity.isFoil ?? false,
+        isAuto: entity.isAuto ?? false,
+        isPatch: entity.isPatch ?? false,
+        isRelic: entity.isRelic ?? false,
+      },
     });
   }
 
