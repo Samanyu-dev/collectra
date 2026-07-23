@@ -57,7 +57,11 @@ describe("syncPokemonPrices — resume-cursor failure guarantee (Phase 5.1)", ()
     mockFetchWithRetry.mockReset();
   });
 
-  it("advances the cursor after a set succeeds, but never past a set that fails", async () => {
+  it("advances the cursor through successes, but freezes it the moment a set fails — even if later sets in the same run succeed", async () => {
+    // This is the exact scenario a live production cross-check caught a real
+    // bug in: set-a succeeds, set-b fails, set-c succeeds. The cursor must
+    // stop at set-a, NOT jump to set-c just because something later happened
+    // to work — otherwise set-b silently stops being retried anytime soon.
     mockFetchWithRetry.mockImplementation((url: string) => {
       if (url.endsWith("/sets")) {
         return Promise.resolve({
@@ -78,18 +82,24 @@ describe("syncPokemonPrices — resume-cursor failure guarantee (Phase 5.1)", ()
 
     // set-a succeeded — cursor should have advanced to it.
     expect(mockDataSourceUpdate).toHaveBeenCalledWith({ where: { id: "source-id" }, data: { syncCursor: "set-a" } });
-    // set-b failed — the cursor must NEVER be set to set-b, at any point.
+    // set-b failed — the cursor must never be set to set-b...
     expect(mockDataSourceUpdate).not.toHaveBeenCalledWith({ where: { id: "source-id" }, data: { syncCursor: "set-b" } });
-    // set-c (after the failure) still succeeded and should have advanced the cursor past it.
-    expect(mockDataSourceUpdate).toHaveBeenCalledWith({ where: { id: "source-id" }, data: { syncCursor: "set-c" } });
+    // ...and critically, must NOT be set to set-c either, even though set-c's
+    // own write succeeded — the watermark freezes at the last *contiguous*
+    // success, not the last success overall.
+    expect(mockDataSourceUpdate).not.toHaveBeenCalledWith({ where: { id: "source-id" }, data: { syncCursor: "set-c" } });
+    // Exactly one syncCursor-advancing call happened (a separate lastSyncedAt
+    // call also hits this same mock at the top of the function — irrelevant here).
+    const cursorCalls = mockDataSourceUpdate.mock.calls.filter(([arg]) => "syncCursor" in (arg.data ?? {}));
+    expect(cursorCalls).toHaveLength(1);
 
     expect(result.failedSets).toEqual(["set-b"]);
-    expect(result.setsProcessed).toBe(2); // set-a and set-c; set-b does not count as processed
+    expect(result.setsProcessed).toBe(2); // set-a and set-c both did real work; only set-a moved the watermark
   });
 
-  it("on the next run, resumes from the last *successful* cursor — a failed set is retried, not skipped", async () => {
-    // Simulates the state left behind by the run above: cursor sits at "set-a"
-    // (the last successful set), not "set-b" (which failed).
+  it("on the next run, resumes right at the frozen cursor and retries the failed set before anything past it", async () => {
+    // Real state left behind by the run above: cursor is "set-a" (frozen
+    // there by set-b's failure), not "set-c".
     mockDataSourceFindUnique.mockResolvedValue({ syncCursor: "set-a" });
     mockFetchWithRetry.mockImplementation((url: string) => {
       if (url.endsWith("/sets")) {

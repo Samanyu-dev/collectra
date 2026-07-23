@@ -14,6 +14,7 @@ Found by production verification of v0.5.0-beta, not left as a known gap: a sing
 - Wraps back to the start once a full lap of the catalog completes.
 - Verified with a real three-run test against the live database: budget-too-tight (0 sets, proves no false-positive corruption), first real set processed (cursor advances), second run resumes from the *next* set rather than restarting.
 - Explicitly not chasing more throughput — the 1.9x batching win from v0.5.0-beta stands; this is a scheduling fix, not another optimization pass.
+- **Follow-up fix, same day**: deploying and cross-checking two live cron runs against each other found that a set which failed (a real transient upstream 500 on `Dragon`/`ex3`) got silently skipped for the near future — the cursor tracked "most recent success" rather than "confirmed-complete watermark," so a later success in the same run overwrote it past the failure. Fixed: the cursor now freezes the instant a set fails and only resumes advancing once that exact set succeeds. The one set affected by the original bug was manually rewound so it gets retried promptly. See the ADR for the full account, including why this wasn't caught by the first version's own test.
 
 ## v0.5.0-beta — 2026-07-23
 

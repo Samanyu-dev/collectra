@@ -103,6 +103,15 @@ export async function syncPokemonPrices(opts: { limitSets?: number; timeBudgetMs
   let totalVariantsTouched = 0;
   let setsProcessed = 0;
   let stoppedOnTimeBudget = false;
+  // Once a set fails, the cursor stops advancing for the rest of THIS run —
+  // even if later sets in the same run succeed. Without this, a failure
+  // followed by any later success would let the cursor jump past the failed
+  // set (its id gets overwritten by the next success), and the failed set
+  // wouldn't be retried again until a full lap of the whole catalog wrapped
+  // back around to it — a real gap found via a live production cross-check,
+  // not a hypothetical. The cursor is a watermark: "everything up to here is
+  // confirmed done," never "the most recent thing that happened to succeed."
+  let cursorCanAdvance = true;
   const failedSets: string[] = [];
 
   for (let i = 0; i < sets.length; i++) {
@@ -224,11 +233,12 @@ export async function syncPokemonPrices(opts: { limitSets?: number; timeBudgetMs
       setsProcessed++;
 
       // Persist the resume cursor only after this set's writes have fully
-      // landed — if the process dies mid-set, the cursor stays on the
-      // previous set and next run safely reprocesses this one (append-only
-      // writes make that idempotent enough: a few duplicate observations,
-      // never a wrong price).
-      if (usingCursor) {
+      // landed, and only if nothing has failed yet this run (see
+      // cursorCanAdvance above) — if the process dies mid-set, the cursor
+      // stays on the previous set and next run safely reprocesses this one
+      // (append-only writes make that idempotent enough: a few duplicate
+      // observations, never a wrong price).
+      if (usingCursor && cursorCanAdvance) {
         await prisma.dataSource.update({ where: { id: tcgplayerSourceId }, data: { syncCursor: setRaw.id } });
       }
 
@@ -239,6 +249,7 @@ export async function syncPokemonPrices(opts: { limitSets?: number; timeBudgetMs
     } catch (e: any) {
       console.log(`  [${i + 1}/${sets.length}] ${setRaw.name} — FAILED (${e.message}), continuing to next set.`);
       failedSets.push(setRaw.id);
+      cursorCanAdvance = false; // this set must succeed before the cursor moves past it
     }
   }
 
