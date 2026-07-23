@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getImagesForEntities } from "@/lib/media/resolve";
-import { getOwnedVariantIds } from "@/lib/actions/collection";
+import { getOwnedVariantQuantities } from "@/lib/actions/collection";
 import { toPriceDisplay } from "@/lib/pricing/display";
 import { CardsBrowseClient } from "./cards-browse-client";
 
@@ -14,7 +14,31 @@ export default async function CardsPage(
   const page = typeof searchParams.page === "string" ? parseInt(searchParams.page, 10) || 1 : 1;
   const limit = 60;
 
-  const where = q ? { name: { contains: q } } : {};
+  const terms = q.trim().split(/\s+/).filter(Boolean);
+  const contains = (term: string) => ({ contains: term, mode: "insensitive" as const });
+  const where = terms.length
+    ? {
+        AND: terms.map((term) => ({
+          OR: [
+            { name: contains(term) },
+            { number: contains(term) },
+            { supertype: contains(term) },
+            { subtypes: contains(term) },
+            { set: { name: contains(term) } },
+            { set: { series: { name: contains(term) } } },
+            { set: { series: { franchise: { name: contains(term) } } } },
+            { set: { series: { brand: { name: contains(term) } } } },
+            { set: { series: { brand: { manufacturer: { name: contains(term) } } } } },
+            { set: { competition: { is: { name: contains(term) } } } },
+            { set: { season: { is: { label: contains(term) } } } },
+            { teams: { some: { name: contains(term) } } },
+            { persons: { some: { name: contains(term) } } },
+            { variants: { some: { insert: { is: { name: contains(term) } } } } },
+            { variants: { some: { parallel: { is: { name: contains(term) } } } } },
+          ],
+        })),
+      }
+    : {};
 
   const [cards, total] = await Promise.all([
     prisma.card.findMany({
@@ -23,8 +47,16 @@ export default async function CardsPage(
       skip: (page - 1) * limit,
       take: limit,
       include: {
-        set: { include: { series: { include: { franchise: true } } } },
-        variants: { include: { currentPrice: true } },
+        set: {
+          include: {
+            competition: true,
+            season: true,
+            series: { include: { franchise: true, brand: { include: { manufacturer: true } } } },
+          },
+        },
+        teams: true,
+        persons: true,
+        variants: { include: { currentPrice: true, insert: true, parallel: true } },
       },
     }),
     prisma.card.count({ where }),
@@ -32,9 +64,8 @@ export default async function CardsPage(
 
   const [imagesByCard, ownedVariantIds] = await Promise.all([
     getImagesForEntities("Card", cards.map((c) => c.id)),
-    getOwnedVariantIds(cards.flatMap((c) => c.variants.map((v) => v.id))),
+    getOwnedVariantQuantities(cards.flatMap((c) => c.variants.map((v) => v.id))),
   ]);
-  const ownedVariantSet = new Set(ownedVariantIds);
 
   const items = cards.map((c) => ({
     id: c.id,
@@ -48,7 +79,7 @@ export default async function CardsPage(
         .filter((v) => v.currentPrice?.marketPriceUsd != null)
         .sort((a, b) => b.currentPrice!.marketPriceUsd! - a.currentPrice!.marketPriceUsd!)[0]?.currentPrice ?? null
     ),
-    owned: c.variants.some((v) => ownedVariantSet.has(v.id)),
+    ownedQuantity: c.variants.reduce((sum, v) => sum + (ownedVariantIds[v.id] ?? 0), 0),
   }));
 
   const totalPages = Math.ceil(total / limit);

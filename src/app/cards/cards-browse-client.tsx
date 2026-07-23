@@ -16,7 +16,7 @@ interface CardItem {
   franchiseName: string;
   images: { type: string; url: string }[];
   price: PriceTagData;
-  owned: boolean;
+  ownedQuantity: number;
 }
 
 export function CardsBrowseClient({
@@ -55,7 +55,8 @@ export function CardsBrowseClient({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
         <input
           type="text"
-          aria-label="Search cards by name" placeholder="Search by name..."
+          aria-label="Search cards"
+          placeholder="Search number, player, team, insert, set..."
           className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -77,17 +78,17 @@ export function CardsBrowseClient({
               transition={{ duration: 0.25, delay: (i % 18) * 0.02 }}
             >
               <Link href={`/cards/${card.id}`} className="block group">
-                <div className={`relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border transition-colors ${card.owned ? 'border-primary/50' : 'border-foreground/5 group-hover:border-foreground/20'}`}>
-                  <div className={`w-full h-full transition-all duration-300 ${card.owned ? '' : 'grayscale-[85%] opacity-45 group-hover:grayscale-0 group-hover:opacity-90'}`}>
+                <div className={`relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border transition-colors ${card.ownedQuantity > 0 ? 'border-primary/50' : 'border-foreground/5 group-hover:border-foreground/20'}`}>
+                  <div className={`w-full h-full transition-all duration-300 ${card.ownedQuantity > 0 ? '' : 'grayscale-[85%] opacity-45 group-hover:grayscale-0 group-hover:opacity-90'}`}>
                     {image ? (
                       <Image src={image.url} alt={card.name} fill className="object-cover" loading="lazy" unoptimized />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[11px] text-foreground/30 text-center p-2">{card.name}</div>
                     )}
                   </div>
-                  {card.owned && (
-                    <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg" aria-label="Owned">
-                      <Check size={11} strokeWidth={3} />
+                  {card.ownedQuantity > 0 && (
+                    <div className="absolute top-1.5 right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg font-mono text-[10px] font-bold" aria-label={`${card.ownedQuantity} owned`}>
+                      {card.ownedQuantity > 1 ? `×${card.ownedQuantity}` : <Check size={11} strokeWidth={3} />}
                     </div>
                   )}
                 </div>

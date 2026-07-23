@@ -6,11 +6,14 @@ import { AmbientBackground } from './ambient-background';
 import { CardDeepZoom } from './card-deep-zoom';
 import { VariantShelf } from './variant-shelf';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, Calendar, Users, Layers, Tag, PackageOpen, Check, Plus, Heart, Shield, Star, Share2, ChevronLeft, ChevronRight, Keyboard } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Calendar, Users, Layers, Tag, PackageOpen, Check, Heart, Shield, Star, Share2, ChevronLeft, ChevronRight, Keyboard } from 'lucide-react';
 import Image from 'next/image';
-import { toggleCardOwned, toggleVaulted, toggleFavorite } from '@/lib/actions/collection';
+import { decrementVariantQuantity, incrementVariantQuantity, toggleFavorite, toggleVaulted } from '@/lib/actions/collection';
 import { toggleWishlist } from '@/lib/actions/wishlist';
 import { PriceTag } from './price-tag';
+import { ProgressBar } from './collectra-ui';
+import { QuantityControl } from './quantity-control';
+import { getVariantCardType, getVariantRarityLabel } from '@/lib/collection/classification';
 import { toPriceDisplay } from '@/lib/pricing/display';
 
 interface RelatedCard {
@@ -28,10 +31,16 @@ interface CardClientExperienceProps {
 
 export function CardClientExperience({ card, topVariantId, relatedCards = [] }: CardClientExperienceProps) {
   const [activeVariantId, setActiveVariantId] = useState(topVariantId);
-  const [owned, setOwned] = useState(!!card.variants.find((v: any) => v.id === topVariantId)?.owned);
+  const [quantityByVariant, setQuantityByVariant] = useState<Record<string, number>>(() =>
+    Object.fromEntries(card.variants.map((v: any) => [v.id, v.ownedQuantity ?? 0]))
+  );
   const [wishlisted, setWishlisted] = useState(!!card.isWishlisted);
-  const [vaulted, setVaulted] = useState(!!card.variants.find((v: any) => v.id === topVariantId)?.vaulted);
-  const [favorited, setFavorited] = useState(!!card.variants.find((v: any) => v.id === topVariantId)?.favorited);
+  const [vaultedByVariant, setVaultedByVariant] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(card.variants.map((v: any) => [v.id, !!v.vaulted]))
+  );
+  const [favoritedByVariant, setFavoritedByVariant] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(card.variants.map((v: any) => [v.id, !!v.favorited]))
+  );
   const [copied, setCopied] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -54,15 +63,30 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
     }
   }
 
-  function handleToggleOwned() {
-    const next = !owned;
-    setOwned(next);
-    if (!next) {
-      setVaulted(false); // can't be vaulted if no longer owned
-      setFavorited(false); // can't be favorited if no longer owned
+  function handleIncrementQuantity() {
+    const current = quantityByVariant[activeVariantId] ?? 0;
+    const next = current + 1;
+    setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: next }));
+    startTransition(() => {
+      incrementVariantQuantity(activeVariantId, { setId: card.setId, cardId: card.id }).catch(() => {
+        setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: current }));
+      });
+    });
+  }
+
+  function handleDecrementQuantity() {
+    const current = quantityByVariant[activeVariantId] ?? 0;
+    if (current <= 0) return;
+    const next = current - 1;
+    setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: next }));
+    if (next === 0) {
+      setVaultedByVariant((prev) => ({ ...prev, [activeVariantId]: false }));
+      setFavoritedByVariant((prev) => ({ ...prev, [activeVariantId]: false }));
     }
     startTransition(() => {
-      toggleCardOwned(activeVariantId, card.setId).catch(() => setOwned(!next));
+      decrementVariantQuantity(activeVariantId, { setId: card.setId, cardId: card.id }).catch(() => {
+        setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: current }));
+      });
     });
   }
 
@@ -76,19 +100,21 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
 
   function handleToggleVaulted() {
     if (!owned) return;
-    const next = !vaulted;
-    setVaulted(next);
+    const current = vaultedByVariant[activeVariantId] ?? false;
+    const next = !current;
+    setVaultedByVariant((prev) => ({ ...prev, [activeVariantId]: next }));
     startTransition(() => {
-      toggleVaulted(activeVariantId).catch(() => setVaulted(!next));
+      toggleVaulted(activeVariantId).catch(() => setVaultedByVariant((prev) => ({ ...prev, [activeVariantId]: current })));
     });
   }
 
   function handleToggleFavorite() {
     if (!owned) return;
-    const next = !favorited;
-    setFavorited(next);
+    const current = favoritedByVariant[activeVariantId] ?? false;
+    const next = !current;
+    setFavoritedByVariant((prev) => ({ ...prev, [activeVariantId]: next }));
     startTransition(() => {
-      toggleFavorite(activeVariantId).catch(() => setFavorited(!next));
+      toggleFavorite(activeVariantId).catch(() => setFavoritedByVariant((prev) => ({ ...prev, [activeVariantId]: current })));
     });
   }
 
@@ -98,12 +124,20 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
   const crestImage = card.images?.find((i: any) => i.type === 'TEAM_CREST')?.url || "";
 
   const activeVariant = card.variants.find((v: any) => v.id === activeVariantId) || card.variants[0];
+  const activeQuantity = quantityByVariant[activeVariantId] ?? activeVariant?.ownedQuantity ?? 0;
+  const owned = activeQuantity > 0;
+  const spares = Math.max(activeQuantity - 1, 0);
+  const vaulted = vaultedByVariant[activeVariantId] ?? false;
+  const favorited = favoritedByVariant[activeVariantId] ?? false;
+  const activeVariantLabel = activeVariant ? getVariantCardType(activeVariant) : 'Base';
+  const activeRarityLabel = activeVariant ? getVariantRarityLabel(activeVariant) : 'Base';
 
   // Map variants for the shelf
   const shelfVariants = card.variants.map((v: any) => {
     // Determine the name based on printing/parallel
-    let name = "Base";
-    if (v.printing?.name && v.parallel?.name) name = `${v.printing.name} ${v.parallel.name}`;
+    let name = getVariantCardType(v);
+    if (v.insert?.name && v.parallel?.name) name = `${v.insert.name} · ${v.parallel.name}`;
+    else if (v.printing?.name && v.parallel?.name) name = `${v.printing.name} ${v.parallel.name}`;
     else if (v.printing?.name) name = v.printing.name;
     else if (v.parallel?.name) name = v.parallel.name;
     
@@ -153,6 +187,25 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
     return () => window.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cycleVariant, owned, wishlisted, favorited]);
+
+  const detailRows = [
+    { label: 'Manufacturer', value: card.set.series.brand?.manufacturer?.name },
+    { label: 'Brand', value: card.set.series.brand?.name },
+    { label: 'Series', value: card.set.series.name },
+    { label: 'Set', value: card.set.name },
+    { label: 'Competition', value: card.set.competition?.name },
+    { label: 'Season', value: card.set.season?.label },
+    { label: 'Card Number', value: card.number },
+    { label: 'Card Type', value: activeVariantLabel },
+    { label: 'Rarity / Variant', value: activeRarityLabel },
+    { label: 'Players', value: card.persons?.map((person: any) => person.name).join(', ') },
+    { label: 'Teams', value: card.teams?.map((team: any) => team.name).join(', ') },
+    { label: 'Artists', value: card.artists?.map((artist: any) => artist.name).join(', ') },
+  ].filter((row) => row.value);
+  const scannerHistory = activeVariant?.scannerHistory ?? [];
+  const marketplaceListings = card.marketplaceListings ?? [];
+  const formatDate = (value: string | Date) =>
+    new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground selection:bg-primary/30 overflow-x-hidden pb-48">
@@ -219,28 +272,11 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
 
             {/* Collection Actions */}
             <div className="flex items-center justify-center lg:justify-start gap-3">
-              <motion.button
-                type="button"
-                onClick={handleToggleOwned}
-                whileTap={{ scale: 0.96 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-colors border ${
-                  owned
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-foreground/10 text-foreground border-foreground/20 hover:bg-foreground/20'
-                }`}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  {owned ? (
-                    <motion.span key="o" initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }} className="flex items-center gap-2">
-                      <Check size={16} strokeWidth={3} /> In Collection
-                    </motion.span>
-                  ) : (
-                    <motion.span key="u" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex items-center gap-2">
-                      <Plus size={16} strokeWidth={3} /> Add to Collection
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
+              <QuantityControl
+                quantity={activeQuantity}
+                onIncrement={handleIncrementQuantity}
+                onDecrement={handleDecrementQuantity}
+              />
 
               <motion.button
                 type="button"
@@ -309,22 +345,36 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
             <div className="flex flex-wrap justify-center lg:justify-start items-center gap-6 font-mono text-foreground/50 text-sm">
               <div className="flex items-center gap-2">
                 <Users size={16} />
-                <span>{card.artists?.map((a:any)=>a.name).join(', ') || 'Unknown Artist'}</span>
+                <span>{card.persons?.map((p:any)=>p.name).join(', ') || card.teams?.map((t:any)=>t.name).join(', ') || 'No person/team data'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar size={16} />
-                <span>{card.set.releaseDate ? new Date(card.set.releaseDate).getFullYear() : 'Unknown Year'}</span>
+                <span>{card.set.season?.label || 'Unknown Season'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Layers size={16} />
-                <span>{card.supertype} {card.subtypes ? `(${card.subtypes})` : ''}</span>
+                <span>{activeRarityLabel}</span>
               </div>
             </div>
 
             {/* Active Variant Price Highlight */}
             <div className="pt-8 border-t border-foreground/10">
-              <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-2">Market Value ({activeVariant.parallel?.name || 'Base'})</p>
+              <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-2">Market Value ({activeVariantLabel})</p>
               <PriceTag data={toPriceDisplay(activeVariant.currentPrice)} />
+              <div className="mt-5 grid grid-cols-3 gap-2 max-w-md mx-auto lg:mx-0">
+                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Owned</p>
+                  <p className="mt-1 text-xl font-display font-bold">{activeQuantity}</p>
+                </div>
+                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Spares</p>
+                  <p className="mt-1 text-xl font-display font-bold">{spares}</p>
+                </div>
+                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Listings</p>
+                  <p className="mt-1 text-xl font-display font-bold">{activeVariant.activeListings?.length ?? 0}</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -350,26 +400,100 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
         />
       </section>
 
-      {/* 4. The Museum Editorial */}
+      {/* 4. Card Facts */}
       <section className="relative z-10 w-full max-w-[800px] mx-auto px-6 md:px-12 mt-32 space-y-24">
         
-        {/* Story */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           <h3 className="text-primary font-mono text-sm tracking-widest uppercase flex items-center gap-2">
-            <Tag size={16} /> The Story
+            <Tag size={16} /> Collection Status
           </h3>
-          <div className="prose prose-invert prose-lg md:prose-xl font-serif text-foreground/80 leading-relaxed">
-            {card.flavorText ? (
-              <blockquote className="border-l-2 border-primary pl-6 italic text-foreground/90 font-medium">
-                "{card.flavorText}"
-              </blockquote>
-            ) : null}
-            <p className="mt-8">
-              Released as part of the highly anticipated <strong>{card.set.name}</strong> set, this iteration of {card.name} represents a cornerstone piece for {card.set.series.franchise.name} collectors. 
-            </p>
-            <p>
-              Illustrated by <strong>{card.artists?.map((a:any)=>a.name).join(', ') || 'an unknown artist'}</strong>, the artwork breaks traditional framing boundaries, offering a glimpse into a broader narrative ecosystem. It continues to be one of the most heavily traded assets on the secondary market.
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Quantity Owned</p>
+              <p className="mt-2 text-3xl font-display font-bold">{activeQuantity}</p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Spares</p>
+              <p className="mt-2 text-3xl font-display font-bold">{spares}</p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Wishlist</p>
+              <p className="mt-2 text-lg font-semibold">{wishlisted ? 'Tracking' : 'Not tracked'}</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">{card.set.name}</p>
+                <p className="text-xs text-foreground/45">{card.setProgress.owned} / {card.setProgress.total} cards owned</p>
+              </div>
+              <p className="text-lg font-display font-bold">{card.setProgress.percent}%</p>
+            </div>
+            <ProgressBar value={card.setProgress.percent} color="var(--primary)" height={8} />
+            <p className="text-xs text-foreground/45">{card.setProgress.missing} missing in this set.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-3">
+              <h4 className="text-sm font-semibold">Marketplace Listings</h4>
+              {marketplaceListings.length === 0 ? (
+                <p className="text-xs text-foreground/45">No active marketplace listings for this card.</p>
+              ) : (
+                <div className="space-y-2">
+                  {marketplaceListings.map((listing: any) => (
+                    <Link
+                      key={listing.id}
+                      href={`/marketplace/${listing.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-background/35 px-3 py-2 text-sm hover:bg-foreground/10 transition-colors"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate">{listing.conditionSnapshot}{listing.gradeSnapshot ? ` · ${listing.gradeSnapshot}` : ''}</span>
+                        <span className="block text-[11px] text-foreground/40">{listing.shipsTo}</span>
+                      </span>
+                      <span className="flex items-center gap-1 font-mono text-primary">
+                        {listing.currency === 'USD' ? '$' : `${listing.currency} `}{listing.price.toFixed(2)}
+                        <ExternalLink size={12} />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-3">
+              <h4 className="text-sm font-semibold">Scanner History</h4>
+              {scannerHistory.length === 0 ? (
+                <p className="text-xs text-foreground/45">No scanner-added copies for this variant.</p>
+              ) : (
+                <div className="space-y-2">
+                  {scannerHistory.slice(0, 4).map((entry: any) => (
+                    <div key={entry.instanceId} className="rounded-xl border border-foreground/10 bg-background/35 px-3 py-2">
+                      <p className="text-sm">Scanned copy</p>
+                      <p className="text-[11px] text-foreground/40">{formatDate(entry.addedAt)} · {entry.condition}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5">
+            <h4 className="mb-4 text-sm font-semibold">Card Metadata</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              {detailRows.map((row) => (
+                <div key={row.label} className="min-w-0">
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">{row.label}</p>
+                  <p className="mt-1 text-sm text-foreground/80 truncate">{row.value}</p>
+                </div>
+              ))}
+              {activeVariant.serialTo && (
+                <div>
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Numbered</p>
+                  <p className="mt-1 text-sm text-foreground/80">/{activeVariant.serialTo}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -462,14 +586,14 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
             <Link href={`/collections/${card.setId}`} className="group p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors">
               <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Set Checklist</p>
               <h4 className="text-xl font-display text-foreground group-hover:text-primary transition-colors">{card.set.name}</h4>
-              <p className="text-sm text-foreground/50 mt-2">Explore the full checklist of cards.</p>
+              <p className="text-sm text-foreground/50 mt-2">{card.setProgress.owned} / {card.setProgress.total} owned.</p>
             </Link>
             
             {card.artists?.[0] ? (
               <Link href={`/artists/${card.artists[0].id}`} className="group p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors cursor-pointer">
                 <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Artist Profile</p>
                 <h4 className="text-xl font-display text-foreground group-hover:text-primary transition-colors">{card.artists[0].name}</h4>
-                <p className="text-sm text-foreground/50 mt-2">View other iconic pieces by this illustrator.</p>
+                <p className="text-sm text-foreground/50 mt-2">View other cards attached to this artist.</p>
               </Link>
             ) : (
               <div className="group p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors cursor-pointer">
@@ -481,13 +605,13 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
             
             {card.characters?.[0] ? (
               <Link href={`/characters/${card.characters[0].id}`} className="group p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors cursor-pointer">
-                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Character Lore</p>
+                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Character</p>
                 <h4 className="text-xl font-display text-foreground group-hover:text-primary transition-colors">{card.characters[0].name}</h4>
-                <p className="text-sm text-foreground/50 mt-2">Explore the complete printing history of this character.</p>
+                <p className="text-sm text-foreground/50 mt-2">View cards linked to this character.</p>
               </Link>
             ) : (
               <div className="group p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors cursor-pointer">
-                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Character Lore</p>
+                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-3">Character</p>
                 <h4 className="text-xl font-display text-foreground group-hover:text-primary transition-colors">None</h4>
                 <p className="text-sm text-foreground/50 mt-2">No character tied to this card.</p>
               </div>

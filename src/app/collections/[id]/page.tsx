@@ -2,7 +2,8 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getImagesForEntities } from "@/lib/media/resolve";
-import { getOwnedVariantIds } from "@/lib/actions/collection";
+import { getOwnedVariantQuantities } from "@/lib/actions/collection";
+import { getVariantCardType, getVariantRarityLabel } from "@/lib/collection/classification";
 import { SetChecklistClient } from "./set-checklist-client";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,8 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
             include: {
               currentPrice: true,
               printing: true,
-              parallel: true
+              parallel: true,
+              insert: true
             }
           }
         }
@@ -42,13 +44,17 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
 
   const imagesByCard = await getImagesForEntities("Card", setRaw.cards.map((c) => c.id));
   const allVariantIds = setRaw.cards.flatMap((c) => c.variants.map((v) => v.id));
-  const ownedVariantIds = new Set(await getOwnedVariantIds(allVariantIds));
+  const ownedQuantities = await getOwnedVariantQuantities(allVariantIds);
   const set = {
     ...setRaw,
     cards: setRaw.cards.map((c) => ({
       ...c,
+      variants: c.variants.map((v) => ({ ...v, ownedQuantity: ownedQuantities[v.id] ?? 0 })),
       images: imagesByCard.get(c.id) ?? [],
-      owned: c.variants.some((v) => ownedVariantIds.has(v.id)),
+      ownedQuantity: c.variants.reduce((sum, v) => sum + (ownedQuantities[v.id] ?? 0), 0),
+      owned: c.variants.some((v) => (ownedQuantities[v.id] ?? 0) > 0),
+      cardType: c.variants[0] ? getVariantCardType(c.variants[0]) : "Base",
+      rarityLabel: c.variants[0] ? getVariantRarityLabel(c.variants[0]) : "Base",
     })),
   };
   // Find a cover image from the first few cards
