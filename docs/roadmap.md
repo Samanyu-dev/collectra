@@ -62,17 +62,19 @@ Closed 2026-07-22, after a resume session that verified every previously-claimed
 
 `src/scripts/seed-collection.ts` and `seed-workspace.ts` no longer hardcode `user_1` — both now require a real, existing user id as a CLI argument (`npx tsx src/scripts/seed-collection.ts <userId>`) rather than fabricating a `User` row, since `User.id` must now equal a real `auth.users` id (see ADR §2).
 
-## Phase 5 — Real Price Engine ✅ (code), 🔜 (one deployment step to fully close)
+## Phase 5 — Real Price Engine ✅ (deployed, verified in production)
 
-**Architecture + implementation**: `docs/adr/003-price-engine-architecture.md` — accepted, implemented, and verified against real data in three passes across 2026-07-22 to 2026-07-23. See the ADR's "Implementation status" section for the full, itemized launch-readiness record; summary here:
+**Architecture + implementation**: `docs/adr/003-price-engine-architecture.md` — accepted, implemented, deployed, and verified against real data and real production infrastructure, 2026-07-22 to 2026-07-23. Live at `https://collectra-plum.vercel.app`, commit `3d74ee7`, tagged `v0.5.0-beta`. See the ADR's "Implementation status" section for the full record; summary here:
 
 - Two real Tier 0 sources (TCGPlayer + Cardmarket, same free API, no new credentials) replacing the never-populated `MarketListing`, which has been fully removed from the schema after proving zero remaining reads and writes.
 - Real outlier exclusion, confidence scoring, and graceful degradation — each verified against actual live-API anomalies and stale data, not synthetic test cases.
 - Rate limiting enforced against the API's real documented limits (30/min, 1000/day), integration-tested with a genuine forced wait/resume.
 - Performance: 1.9x faster after batching, confirmed on a larger real run (413 variants); the original retry storm is gone.
-- 53 tests, a shared `PriceTag` UI component wired into every major price-display surface, and a role-gated `/admin/pricing` visibility page.
+- 59 tests, a shared `PriceTag` UI component wired into every major price-display surface, and a role-gated `/admin/pricing` visibility page.
+- **Deployed and verified live**: real signup/login, ownership isolation, cron authentication, and the admin dashboard all confirmed against production, not just locally.
+- **Phase 5.1 (incremental/resumable sync), also shipped**: production verification itself found that one cron invocation can't finish the ~174-set catalog inside Vercel's function time limit. Fixed with a persisted resume cursor (keyed on each set's own stable id, not array position) and a time-boxed loop — each daily invocation now picks up where the last one stopped, wrapping to the start once a full lap completes. Verified with a real three-run test against the live database proving actual resume, not just design intent.
 
-**The one thing not done**: none of Phase 4 or Phase 5's code has ever been deployed — this repo has a single git commit predating both phases. Production cron execution can't be verified until this work is committed, `CRON_SECRET` is set on the Vercel project, and a real deploy goes out. Held for explicit sign-off rather than done unilaterally, since it's a real, hard-to-reverse action on shared production infrastructure.
+**Deliberately not done**: further throughput optimization (the 1.9x batching win plus incremental sync is the more durable fix than squeezing more speed out of one invocation), Tier 1 (paid) sources, MTG/Scryfall pricing, realized gains, wishlist notification delivery, OAuth/magic-link. Each is a named, scoped follow-up in the ADR, not a silently dropped requirement.
 
 ## Phase 6 — Scanner 💭
 

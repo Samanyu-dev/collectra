@@ -3,6 +3,15 @@
 // Cardmarket (EUR) prices — fetch-all.ts fetches this same payload today and
 // only reads the tcgplayer half to infer which variants exist, then discards
 // both. This wires both into PriceObservation, at zero new cost/credentials.
+//
+// Phase 5.1 — incremental/resumable sync: a single invocation cannot finish
+// all ~174 sets within Vercel's function duration limit (confirmed in
+// production — a real run got through 14/174 before the platform stopped
+// making progress). Rather than chase more throughput, each invocation now
+// processes as many sets as fit in a time budget, persists a resume cursor
+// after every set that actually completes, and picks up where the last
+// invocation left off next time — wrapping back to the start once a full
+// lap finishes. See docs/adr/003 for the full record.
 import { prisma } from "../engine/prisma";
 import { builder } from "../engine/builder";
 import { getOrCreateDataSource } from "../engine/media";
@@ -10,6 +19,7 @@ import { fetchWithRetry, sleep, API_URL } from "./api-client";
 import { writePriceObservationsBatch } from "@/lib/pricing/write-observation";
 import { recomputeCurrentPricesForVariants } from "@/lib/pricing/recompute";
 import { throttleRequest, POKEMON_TCG_API_WINDOWS } from "@/lib/pricing/rate-limit";
+import { resolveStartIndex } from "@/lib/pricing/resume-cursor";
 import type { RawPriceObservation } from "@/lib/pricing/types";
 
 const TCGPLAYER_SOURCE = "pokemontcg-api";
@@ -17,6 +27,12 @@ const TCGPLAYER_SOURCE = "pokemontcg-api";
 // response, not the same provider as TCGPlayer — gets its own DataSource so
 // its trust level and provenance are tracked separately.
 const CARDMARKET_SOURCE = "cardmarket-via-pokemontcg-api";
+
+// Leaves real buffer under the route's maxDuration (300s) for the in-flight
+// set to finish, the cursor write, and response serialization — sets have
+// taken over 30s each under real upstream API flakiness, so the buffer needs
+// to survive one slow set starting right at the boundary, not just an instant.
+const DEFAULT_TIME_BUDGET_MS = 240_000;
 
 // The three variant shapes fetch-all.ts actually creates Variant rows for.
 const PRICE_TYPE_TO_SHAPE: Record<string, "normal" | "holofoil" | "reverseHolofoil"> = {
@@ -46,10 +62,15 @@ function parseApiDate(raw: string | undefined): Date {
   return raw ? new Date(raw.replace(/\//g, "-")) : new Date();
 }
 
-export async function syncPokemonPrices(opts: { limitSets?: number } = {}) {
+export async function syncPokemonPrices(opts: { limitSets?: number; timeBudgetMs?: number } = {}) {
   const t0 = Date.now();
+  const timeBudgetMs = opts.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS;
   const tcgplayerSourceId = await getOrCreateDataSource(TCGPLAYER_SOURCE, "OFFICIAL_API");
   const cardmarketSourceId = await getOrCreateDataSource(CARDMARKET_SOURCE, "OFFICIAL_API");
+  // getOrCreateDataSource only sets lastSyncedAt on first-ever creation — mark
+  // this invocation's start explicitly so "last sync" on the admin page
+  // reflects reality even though each run only covers a subset of sets.
+  await prisma.dataSource.update({ where: { id: tcgplayerSourceId }, data: { lastSyncedAt: new Date() } });
 
   const holoParallelId = await builder.getOrCreateParallel("Holofoil");
   const reverseParallelId = await builder.getOrCreateParallel("Reverse Holofoil");
@@ -61,14 +82,36 @@ export async function syncPokemonPrices(opts: { limitSets?: number } = {}) {
   // row represents the API endpoint, not "TCGPlayer data specifically."
   await throttleRequest(tcgplayerSourceId, POKEMON_TCG_API_WINDOWS, prisma);
   const setsData = await fetchWithRetry(`${API_URL}/sets`);
-  const sets = opts.limitSets ? setsData.data.slice(0, opts.limitSets) : setsData.data;
-  console.log(`Processing ${sets.length} set(s).`);
+  const allSets = setsData.data;
+
+  let sets: any[];
+  let usingCursor = false;
+  if (opts.limitSets) {
+    // Test/CLI-only path — a fixed prefix, deliberately not cursor-aware so
+    // local verification runs are reproducible.
+    sets = allSets.slice(0, opts.limitSets);
+  } else {
+    usingCursor = true;
+    const source = await prisma.dataSource.findUnique({ where: { id: tcgplayerSourceId }, select: { syncCursor: true } });
+    const startIndex = resolveStartIndex(allSets, source?.syncCursor ?? null);
+    sets = allSets.slice(startIndex);
+    console.log(`Resuming from index ${startIndex}/${allSets.length} (cursor: ${source?.syncCursor ?? "none — starting a fresh lap"}).`);
+  }
+  console.log(`Considering ${sets.length} set(s) this invocation, time budget ${timeBudgetMs}ms.`);
 
   let totalObservationsWritten = 0;
   let totalVariantsTouched = 0;
+  let setsProcessed = 0;
+  let stoppedOnTimeBudget = false;
   const failedSets: string[] = [];
 
   for (let i = 0; i < sets.length; i++) {
+    if (usingCursor && Date.now() - t0 > timeBudgetMs) {
+      stoppedOnTimeBudget = true;
+      console.log(`Time budget reached after ${setsProcessed} set(s) — stopping; the next invocation resumes from here.`);
+      break;
+    }
+
     const setRaw = sets[i];
     const tSet0 = Date.now();
     try {
@@ -178,6 +221,16 @@ export async function syncPokemonPrices(opts: { limitSets?: number } = {}) {
 
       totalObservationsWritten += written;
       totalVariantsTouched += touchedVariantIds.size;
+      setsProcessed++;
+
+      // Persist the resume cursor only after this set's writes have fully
+      // landed — if the process dies mid-set, the cursor stays on the
+      // previous set and next run safely reprocesses this one (append-only
+      // writes make that idempotent enough: a few duplicate observations,
+      // never a wrong price).
+      if (usingCursor) {
+        await prisma.dataSource.update({ where: { id: tcgplayerSourceId }, data: { syncCursor: setRaw.id } });
+      }
 
       console.log(
         `  [${i + 1}/${sets.length}] ${setRaw.name} — ${touchedVariantIds.size} variant(s), ${written} observation(s), ${Date.now() - tSet0}ms`
@@ -190,13 +243,25 @@ export async function syncPokemonPrices(opts: { limitSets?: number } = {}) {
   }
 
   const elapsedMs = Date.now() - t0;
+  const lapComplete = usingCursor && !stoppedOnTimeBudget && setsProcessed + failedSets.length >= sets.length;
   console.log(
     `\nWrote ${totalObservationsWritten} price observations across ${totalVariantsTouched} variants in ${elapsedMs}ms (${(elapsedMs / Math.max(1, totalVariantsTouched)).toFixed(0)}ms/variant).`
   );
+  if (usingCursor) {
+    console.log(lapComplete ? "Completed a full lap of the catalog — next invocation starts over from the beginning." : "Did not finish this lap — next invocation resumes from the cursor.");
+  }
   if (failedSets.length > 0) {
     console.log(`${failedSets.length} set(s) failed and were skipped: ${failedSets.join(", ")}`);
   }
-  return { observationsWritten: totalObservationsWritten, variantsTouched: totalVariantsTouched, failedSets, elapsedMs };
+  return {
+    observationsWritten: totalObservationsWritten,
+    variantsTouched: totalVariantsTouched,
+    failedSets,
+    elapsedMs,
+    setsProcessed,
+    stoppedOnTimeBudget,
+    lapComplete,
+  };
 }
 
 // CLI entry point: `npx tsx src/ingestion/pokemon/sync-prices.ts [limitSets]`

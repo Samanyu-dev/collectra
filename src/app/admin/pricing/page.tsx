@@ -88,6 +88,9 @@ export default async function PricingAdminPage() {
                     <p className="text-xs text-foreground/40 font-mono mt-0.5">
                       {s.kind} · trust {s.trustLevel} · {s._count.priceObservations.toLocaleString()} observations
                     </p>
+                    {s.syncCursor && (
+                      <p className="text-[11px] text-foreground/30 font-mono mt-1">Resume cursor (Phase 5.1): {s.syncCursor}</p>
+                    )}
                   </div>
                   <div className={`flex items-center gap-1.5 text-xs font-mono ${stale ? "text-yellow-500" : "text-green-400"}`}>
                     {stale ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}

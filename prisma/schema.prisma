@@ -471,6 +471,13 @@ model DataSource {
   lastSyncedAt DateTime?
   createdAt    DateTime  @default(now())
 
+  // Phase 5.1 — resumable sync: the last fully-completed item's own stable id
+  // (e.g. a Pokémon set id like "base1"), not an array index, so a change in
+  // upstream ordering can't silently skip or reprocess items. Null means
+  // "never synced" or "just wrapped after finishing a full lap" — both start
+  // from the beginning, which is the correct behavior for both cases.
+  syncCursor String?
+
   media             Media[]
   priceObservations PriceObservation[]
   rateLimits        SourceRateLimit[]

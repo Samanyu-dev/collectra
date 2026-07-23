@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { syncPokemonPrices } from "@/ingestion/pokemon/sync-prices";
 
-export const maxDuration = 300; // Fluid Compute default cap — a full-catalog sync may need more; see docs/adr/003 rollout notes.
+export const maxDuration = 300; // Fluid Compute default cap.
 
 /**
  * Vercel Cron entry point for the Tier 0 price sweep (ADR §9/§14). Vercel
@@ -11,6 +11,12 @@ export const maxDuration = 300; // Fluid Compute default cap — a full-catalog 
  * rate limit. CRON_SECRET must be set in the Vercel project's environment
  * variables (see docs/adr/003-price-engine-architecture.md §9 for the full
  * deployment checklist) — this route 401s until it is.
+ *
+ * Phase 5.1: one invocation can't finish the full ~174-set catalog inside
+ * this 300s cap (confirmed in production). syncPokemonPrices() self-limits to
+ * a time budget under that cap and persists a resume cursor, so each daily
+ * invocation picks up where the last one stopped rather than restarting —
+ * see src/lib/pricing/resume-cursor.ts and the ADR's implementation status.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
