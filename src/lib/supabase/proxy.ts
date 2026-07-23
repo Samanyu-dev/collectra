@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // "/" (the dashboard) is personal data too — added during implementation, not
 // in the ADR's original list, which only enumerated the sub-routes. Exact-match
 // only for "/" so it doesn't prefix-match every route in the app.
-const PROTECTED_PREFIXES = ["/", "/settings", "/shelf", "/vault", "/wishlist", "/projects", "/statistics", "/migration", "/admin"];
+const PROTECTED_PREFIXES = ["/", "/settings", "/shelf", "/vault", "/wishlist", "/projects", "/statistics", "/migration", "/admin", "/scan", "/marketplace/new", "/marketplace/selling"];
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 /**

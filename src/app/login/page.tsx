@@ -5,11 +5,16 @@ import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage(props: { searchParams: Promise<{ next?: string }> }) {
+const ERROR_MESSAGES: Record<string, string> = {
+  missing_code: "That confirmation link is missing its code — try requesting a new one.",
+  confirmation_failed: "That confirmation link is invalid or has expired — try requesting a new one.",
+};
+
+export default async function LoginPage(props: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const user = await getCurrentUser();
   if (user) redirect("/");
 
-  const { next } = await props.searchParams;
+  const { next, error } = await props.searchParams;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6">
@@ -18,6 +23,12 @@ export default async function LoginPage(props: { searchParams: Promise<{ next?: 
           <h1 className="text-3xl font-display font-bold tracking-tight">Welcome back</h1>
           <p className="text-foreground/50 text-sm">Sign in to your Collectra account.</p>
         </div>
+
+        {error && ERROR_MESSAGES[error] && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl" role="alert">
+            {ERROR_MESSAGES[error]}
+          </div>
+        )}
 
         <LoginForm next={next} />
 

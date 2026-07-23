@@ -342,6 +342,8 @@ model Media {
 
   variants    MediaVariant[]
   attachments MediaAttachment[]
+
+  scannedForInstances Instance[] @relation("InstanceScanMedia")
 }
 
 model MediaVariant {
@@ -363,12 +365,12 @@ model MediaAttachment {
   mediaId String
   media   Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
-  entityType String // Card, Product, Artist, Character, Person, Team, Project, User
+  entityType String // Card, Product, Artist, Character, Person, Team, Project, User, Listing
   entityId   String
   // Placement usage: Homepage_Hero, Discovery, Card_Gallery, Thumbnail
   // Physical image type (an entity may own many of these simultaneously — never assume one image per card):
   // FRONT_SCAN, BACK_SCAN, OFFICIAL_ARTWORK, PRODUCT_IMAGE, PACK_IMAGE, BOX_IMAGE, CASE_IMAGE,
-  // GRADED_SLAB_FRONT, GRADED_SLAB_BACK, SIGNATURE_CLOSEUP, PATCH_CLOSEUP, PRINTING_ERROR, ALTERNATE_LANGUAGE
+  // GRADED_SLAB_FRONT, GRADED_SLAB_BACK, SIGNATURE_CLOSEUP, PATCH_CLOSEUP, PRINTING_ERROR, ALTERNATE_LANGUAGE, LISTING_PHOTO
   usage      String
 }
 
@@ -411,7 +413,14 @@ model Instance {
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id])
 
-  events Event[]
+  // Phase 6 (docs/adr/004-scanner-architecture.md §5) — the photo actually
+  // scanned to identify this instance, kept as real provenance rather than
+  // discarded after matching. Null for instances added any other way.
+  scanMediaId String?
+  scanMedia   Media?  @relation("InstanceScanMedia", fields: [scanMediaId], references: [id])
+
+  events   Event[]
+  listings Listing[]
 }
 
 model User {
@@ -438,6 +447,88 @@ model User {
   uploadedMedia          Media[]            @relation("MediaUploadedBy")
   contributionsSubmitted Contribution[]     @relation("ContributionSubmittedBy")
   contributionsReviewed  Contribution[]     @relation("ContributionReviewedBy")
+  listings               Listing[]          @relation("ListingSeller")
+  reservedListings       Listing[]          @relation("ListingReservedBy")
+  listingInquiriesSent   ListingInquiry[]   @relation("ListingInquiryBuyer")
+}
+
+// ==========================================
+// 9. MARKETPLACE (docs/adr/005-marketplace-architecture.md)
+// ==========================================
+
+model Listing {
+  id String @id @default(cuid())
+
+  // The specific physical card being sold — never the catalog Variant
+  // directly (ADR 005 §1). One Instance can have many historical Listing
+  // rows (withdrawn/expired/sold ones), but at most one ACTIVE at a time —
+  // enforced by a partial unique index in the migration, not representable
+  // in Prisma schema syntax directly.
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id])
+
+  sellerId String
+  seller   User   @relation("ListingSeller", fields: [sellerId], references: [id])
+
+  // DRAFT, ACTIVE, RESERVED, SOLD, WITHDRAWN, EXPIRED (ADR 005 §7)
+  status String @default("DRAFT")
+
+  // Full snapshot at creation time (ADR 005 §2) — never silently synced from
+  // a later Instance/Certification edit. To reflect a real change, withdraw
+  // and create a new Listing; there is deliberately no "refresh" mutation.
+  conditionSnapshot String
+  gradeSnapshot     String? // copied from Certification.grade at listing time, if graded
+  description       String?
+
+  price    Float
+  currency String @default("USD")
+
+  // Plain descriptive tag, not real shipping logistics (ADR 005 §8) —
+  // e.g. "Worldwide", "Europe", "India", "Local pickup".
+  shipsTo String
+
+  reservedByUserId String?
+  reservedBy       User?     @relation("ListingReservedBy", fields: [reservedByUserId], references: [id])
+  reservedAt       DateTime?
+  soldAt           DateTime?
+  withdrawnAt      DateTime?
+
+  // Staleness (ADR 005 §4) — set at creation (createdAt + N days), the
+  // expiry SyncJob queries status=ACTIVE AND expiresAt < now().
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  inquiries ListingInquiry[]
+
+  // The partial unique index enforcing "one ACTIVE listing per instance"
+  // (ADR 005 §4) is hand-written in the migration — not representable here.
+  @@index([status])
+  @@index([sellerId])
+}
+
+model ListingInquiry {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+
+  buyerId String
+  buyer   User   @relation("ListingInquiryBuyer", fields: [buyerId], references: [id])
+
+  // "Message Seller" (ADR 005 §3a) — deliberately not a full thread model:
+  // one buyer message, at most one seller reply. Further back-and-forth
+  // happens by whatever means the two parties prefer once the seller
+  // chooses to share contact info in their reply.
+  message String
+
+  reply       String?
+  respondedAt DateTime? // set the first time the seller replies — the real signal behind the "response rate" trust fact (ADR 005 §5)
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+  @@index([buyerId])
 }
 
 model Event {
@@ -450,7 +541,8 @@ model Event {
   // Every mutation should emit one of these (non-exhaustive, extend as needed):
   // CARD_ADDED, CARD_REMOVED, CARD_SCANNED, CARD_IMPORTED, FAVORITED, VAULTED, GRADED,
   // PRICE_UPDATED, MEDIA_VERIFIED, PROJECT_COMPLETED, COLLECTION_IMPORTED, COLLECTION_CREATED,
-  // WISHLIST_ADDED, WISHLIST_REMOVED, TRADE_CREATED
+  // WISHLIST_ADDED, WISHLIST_REMOVED, TRADE_CREATED, LISTING_CREATED, LISTING_RESERVED,
+  // LISTING_SOLD, LISTING_WITHDRAWN, LISTING_EXPIRED
   type      String
   timestamp DateTime @default(now())
   metadata  String?

@@ -6,11 +6,12 @@ import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Home, Layers, Search, User, Compass, Grid3x3, X,
-  BookOpen, Shield, Heart, Target, BarChart3, Upload, PackageOpen, LayoutGrid, Settings, Factory,
+  BookOpen, Shield, Heart, Target, BarChart3, Upload, PackageOpen, LayoutGrid, Settings, Factory, ScanLine, Tag,
 } from 'lucide-react';
 
 const PRIMARY_ITEMS = [
   { label: 'Home', href: '/', icon: Home },
+  { label: 'Scan', href: '/scan', icon: ScanLine },
   { label: 'Collections', href: '/collections', icon: Layers },
   { label: 'Discover', href: '/discover', icon: Compass },
   { label: 'Search', href: '/search', icon: Search },
@@ -21,6 +22,7 @@ const MORE_ITEMS = [
   { label: 'All Cards', href: '/cards', icon: LayoutGrid },
   { label: 'Explore', href: '/explore', icon: BookOpen },
   { label: 'Manufacturers', href: '/manufacturers', icon: Factory },
+  { label: 'Marketplace', href: '/marketplace', icon: Tag },
   { label: 'Vault', href: '/vault', icon: Shield },
   { label: 'Wishlist', href: '/wishlist', icon: Heart },
   { label: 'Projects', href: '/projects', icon: Target },

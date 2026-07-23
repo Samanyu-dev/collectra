@@ -19,7 +19,16 @@ export function SignupForm() {
     setSubmitting(true);
 
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Without emailRedirectTo, Supabase falls back to the project's configured
+    // Site URL — which is why confirmation emails were pointing at localhost in
+    // production. window.location.origin (not an env var, not hardcoded) is
+    // correct in every environment: localhost in dev, the real deployed origin
+    // in production — same pattern forgot-password-form.tsx already uses.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
 
     if (error) {
       setError(error.message);
