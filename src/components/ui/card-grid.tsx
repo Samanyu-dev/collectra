@@ -8,7 +8,9 @@ import { ArrowDown, ArrowUp, Check, Plus, Search } from 'lucide-react';
 import { PriceTag } from './price-tag';
 import { QuantityControl } from './quantity-control';
 import { SmartSelect } from './smart-select';
+import { Sparkline } from './sparkline';
 import { toPriceDisplay } from '@/lib/pricing/display';
+import type { RarityTier } from '@/lib/collection/classification';
 
 type CurrentPrice = {
   marketPriceUsd: number | null;
@@ -16,6 +18,7 @@ type CurrentPrice = {
   observationCount: number;
   latestObservationAt: Date | null;
   contributingSources: string | null;
+  trend30dPercent?: number | null;
 };
 type Variant = {
   id: string;
@@ -39,6 +42,16 @@ export type CardGridCard = {
   ownedQuantity?: number;
   cardType?: string | null;
   rarityLabel?: string | null;
+  rarityTier?: RarityTier;
+  sparkline?: number[] | null;
+};
+
+const RARITY_GLOW_CLASS: Partial<Record<RarityTier, string>> = {
+  rare: 'rarity-glow-rare',
+  epic: 'rarity-glow-epic',
+  legendary: 'rarity-glow-legendary',
+  unique: 'rarity-glow-unique',
+  // 'common' intentionally has no entry — an untreated border IS the signal.
 };
 
 export function CardGrid({
@@ -181,6 +194,7 @@ export function CardGrid({
           const isCrestFallback = !realArt && !!crestArt;
           const ownedQuantity = quantityFor(card);
           const owned = ownedQuantity > 0;
+          const glowClass = card.rarityTier ? RARITY_GLOW_CLASS[card.rarityTier] : undefined;
 
           return (
             <motion.div
@@ -191,7 +205,7 @@ export function CardGrid({
               transition={{ duration: 0.3, delay: (index % 24) * 0.02, ease: 'easeOut' }}
               whileHover={{ scale: 1.05, zIndex: 10 }}
               whileTap={{ scale: 0.98 }}
-              className={`group relative aspect-[63/88] rounded-xl overflow-hidden border shadow-lg hover:shadow-2xl ${owned ? 'border-primary/60 bg-primary/5' : 'border-foreground/5 bg-foreground/5 hover:border-foreground/20'}`}
+              className={`group relative aspect-[63/88] rounded-xl overflow-hidden border shadow-lg hover:shadow-2xl ${owned ? 'border-primary/60 bg-primary/5' : 'border-foreground/5 bg-foreground/5 hover:border-foreground/20'} ${glowClass ?? ''}`}
             >
               <Link href={`/cards/${card.id}`} className="absolute inset-0 z-0">
                 {/* Holo/foil sheen — a diagonal light catches the card on hover, like tilting it in your hand */}
@@ -286,9 +300,12 @@ export function CardGrid({
               {/* Hover Meta + explicit quantity control */}
               <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-background/95 via-background/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
                 <p className="text-foreground text-xs truncate font-medium">{card.name}</p>
-                <div className="flex justify-between items-center mt-0.5 mb-2">
-                  <p className="text-primary font-mono text-[10px]">#{card.number}</p>
-                  {topPriced?.marketPriceUsd != null && <PriceTag compact data={toPriceDisplay(topPriced)} />}
+                <div className="flex justify-between items-center mt-0.5 mb-2 gap-2">
+                  <p className="text-primary font-mono text-[10px] shrink-0">#{card.number}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {topPriced?.marketPriceUsd != null && <PriceTag compact data={toPriceDisplay(topPriced)} />}
+                    {card.sparkline && card.sparkline.length >= 2 && <Sparkline points={card.sparkline} width={36} height={14} />}
+                  </div>
                 </div>
                 {card.cardType && <p className="mb-2 text-[10px] text-foreground/45 truncate">{card.cardType}</p>}
                 <div className="pointer-events-auto" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>

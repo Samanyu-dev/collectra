@@ -111,7 +111,7 @@ export default async function DiscoveryEnginePage() {
               image={mostValuableCard.image}
               name={mostValuableCard.name}
               rarity={mostValuableCard.setName}
-              value={`$${mostValuableCard.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+              value={`$${mostValuableCard.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
             />
           </Link>
         )}

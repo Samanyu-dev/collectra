@@ -2,6 +2,9 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getFranchiseAnalytics } from "@/lib/intelligence/feed/franchise-analytics";
+import { FranchiseAnalyticsHeader } from "@/components/ui/franchise-analytics-header";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,11 @@ export default async function CollectionsIndexPage(
       }
     }
   });
+
+  // Collection Analytics header — only when a franchise is selected and the
+  // visitor is logged in (this page itself is public/auth-optional).
+  const currentUser = selectedFranchise ? await getCurrentUser() : null;
+  const franchiseAnalytics = currentUser && selectedFranchise ? await getFranchiseAnalytics(currentUser.id, selectedFranchise) : null;
 
   // Determine which sets to fetch
   const whereClause: any = {};
@@ -77,6 +85,8 @@ export default async function CollectionsIndexPage(
             Explore {totalSets.toLocaleString()} sets across the Universal Knowledge Graph.
           </p>
         </section>
+
+        {franchiseAnalytics && <FranchiseAnalyticsHeader analytics={franchiseAnalytics} />}
 
         {/* Filter Bar & Search */}
         <section className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl py-4 border-y border-foreground/5 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center -mx-6 md:-mx-12 px-6 md:px-12">

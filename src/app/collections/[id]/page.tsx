@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getImagesForEntities } from "@/lib/media/resolve";
 import { getOwnedVariantQuantities } from "@/lib/actions/collection";
-import { getVariantCardType, getVariantRarityLabel } from "@/lib/collection/classification";
+import { getVariantCardType, getVariantRarityLabel, getRarityTier } from "@/lib/collection/classification";
+import { getSparklinesForVariants } from "@/lib/pricing/history";
 import { SetChecklistClient } from "./set-checklist-client";
 
 export const dynamic = "force-dynamic";
@@ -45,17 +46,34 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   const imagesByCard = await getImagesForEntities("Card", setRaw.cards.map((c) => c.id));
   const allVariantIds = setRaw.cards.flatMap((c) => c.variants.map((v) => v.id));
   const ownedQuantities = await getOwnedVariantQuantities(allVariantIds);
+
+  // Sparkline data keyed by each card's highest-priced variant — the same
+  // variant CardGrid's PriceTag renders a value for, so the two stay in sync.
+  const topVariantIdByCard = new Map<string, string>();
+  for (const c of setRaw.cards) {
+    const top = c.variants
+      .filter((v) => v.currentPrice?.marketPriceUsd != null)
+      .sort((a, b) => (b.currentPrice!.marketPriceUsd ?? 0) - (a.currentPrice!.marketPriceUsd ?? 0))[0];
+    if (top) topVariantIdByCard.set(c.id, top.id);
+  }
+  const sparklinesByVariant = await getSparklinesForVariants([...topVariantIdByCard.values()]);
+
   const set = {
     ...setRaw,
-    cards: setRaw.cards.map((c) => ({
-      ...c,
-      variants: c.variants.map((v) => ({ ...v, ownedQuantity: ownedQuantities[v.id] ?? 0 })),
-      images: imagesByCard.get(c.id) ?? [],
-      ownedQuantity: c.variants.reduce((sum, v) => sum + (ownedQuantities[v.id] ?? 0), 0),
-      owned: c.variants.some((v) => (ownedQuantities[v.id] ?? 0) > 0),
-      cardType: c.variants[0] ? getVariantCardType(c.variants[0]) : "Base",
-      rarityLabel: c.variants[0] ? getVariantRarityLabel(c.variants[0]) : "Base",
-    })),
+    cards: setRaw.cards.map((c) => {
+      const topVariantId = topVariantIdByCard.get(c.id);
+      return {
+        ...c,
+        variants: c.variants.map((v) => ({ ...v, ownedQuantity: ownedQuantities[v.id] ?? 0 })),
+        images: imagesByCard.get(c.id) ?? [],
+        ownedQuantity: c.variants.reduce((sum, v) => sum + (ownedQuantities[v.id] ?? 0), 0),
+        owned: c.variants.some((v) => (ownedQuantities[v.id] ?? 0) > 0),
+        cardType: c.variants[0] ? getVariantCardType(c.variants[0]) : "Base",
+        rarityLabel: c.variants[0] ? getVariantRarityLabel(c.variants[0]) : "Base",
+        rarityTier: c.variants[0] ? getRarityTier(c.variants[0]) : "common",
+        sparkline: topVariantId ? sparklinesByVariant[topVariantId] ?? null : null,
+      };
+    }),
   };
   // Find a cover image from the first few cards
   const topCards = set.cards.slice(0, 4);

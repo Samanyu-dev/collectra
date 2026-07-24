@@ -34,3 +34,26 @@ export function getVariantRarityLabel(variant: VariantClassificationInput): stri
 
   return labels.length > 0 ? labels.join(" · ") : "Base";
 }
+
+export type RarityTier = "common" | "rare" | "epic" | "legendary" | "unique";
+
+/**
+ * A 5-tier visual rarity derived entirely from existing Variant flags — no
+ * new catalog data required, works uniformly across every franchise (sports
+ * autographs/relics, TCG foils/parallels, anime inserts) since it reads the
+ * same signals getVariantRarityLabel does, just bucketed for a glow/border
+ * treatment instead of a text label.
+ */
+export function getRarityTier(variant: VariantClassificationInput): RarityTier {
+  if (variant.serialTo === 1) return "unique"; // a true 1-of-1
+  if (variant.isAuto || variant.isRelic || variant.isPatch || (variant.serialTo != null && variant.serialTo <= 25)) {
+    return "legendary";
+  }
+  if (variant.insert?.name || variant.parallel?.name || (variant.serialTo != null && variant.serialTo <= 99)) {
+    return "epic";
+  }
+  if (variant.isFoil || (variant.printing?.name && variant.printing.name.toLowerCase() !== "base")) {
+    return "rare";
+  }
+  return "common";
+}

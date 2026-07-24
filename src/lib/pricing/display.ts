@@ -6,6 +6,10 @@ type CurrentPriceRow = {
   observationCount: number;
   latestObservationAt: Date | null;
   contributingSources: string | null;
+  trend30dPercent?: number | null;
+  lowestListingUsd?: number | null;
+  highestListingUsd?: number | null;
+  soldAverageUsd?: number | null;
 } | null | undefined;
 
 /**
@@ -29,5 +33,9 @@ export function toPriceDisplay(currentPrice: CurrentPriceRow): PriceDisplay {
     observationCount: currentPrice.observationCount,
     lastUpdated: currentPrice.latestObservationAt,
     sources,
+    trend30dPercent: currentPrice.trend30dPercent ?? null,
+    lowUsd: currentPrice.lowestListingUsd ?? null,
+    highUsd: currentPrice.highestListingUsd ?? null,
+    soldAverageUsd: currentPrice.soldAverageUsd ?? null,
   };
 }

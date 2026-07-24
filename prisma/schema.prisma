@@ -508,6 +508,11 @@ model User {
   avatarUrl     String?
   bio           String?
   isPublic      Boolean   @default(false)
+  // Independent of isPublic — isPublic controls whether /u/[username] exists
+  // at all; this controls whether dollar amounts render on it. Defaults to
+  // false even when isPublic is true — an explicit second opt-in, not
+  // implied by making the profile public.
+  showValuePublicly Boolean @default(false)
   role          String    @default("USER") // USER | MODERATOR | CURATOR | ADMIN
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt

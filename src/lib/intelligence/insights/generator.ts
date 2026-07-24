@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { getWishlistMarketPrice, type WishlistPriceRow } from "../wishlist-price";
+
+type InsightInstance = {
+  variantId: string;
+  variant: { card: { id: string }; currentPrice: { marketPriceUsd: number | null } | null };
+};
 
 /**
  * Level 2: Recommendation Generation
@@ -6,8 +12,11 @@ import { prisma } from "@/lib/prisma";
  * Every estimate here is derived from real CurrentPrice data — if there's
  * no real pricing to work from, the estimate field is simply omitted rather
  * than filled with a guessed constant.
+ *
+ * Takes the caller's already-fetched instances instead of re-querying —
+ * see the note in metrics/calculate.ts recalculateUserMetrics.
  */
-export async function generateInsights(userId: string) {
+export async function generateInsights(userId: string, instances: InsightInstance[], wishlist: WishlistPriceRow[] = []) {
   // Clear old volatile insights (Optional, could just rely on expiresAt)
   await prisma.insight.deleteMany({
     where: { userId, status: "NEW", sourceEngine: "recommendation-engine-v1" },
@@ -26,10 +35,6 @@ export async function generateInsights(userId: string) {
 
   // Rule 1: Duplicate Selling — if the user has real duplicates, estimate
   // recovery value from the actual market price of those specific variants.
-  const instances = await prisma.instance.findMany({
-    where: { userId },
-    include: { variant: { include: { currentPrice: true } } },
-  });
   const byVariant = new Map<string, typeof instances>();
   for (const inst of instances) {
     byVariant.set(inst.variantId, [...(byVariant.get(inst.variantId) ?? []), inst]);
@@ -96,6 +101,50 @@ export async function generateInsights(userId: string) {
         sourceEngine: "recommendation-engine-v1",
       });
     }
+  }
+
+  // Rule 3: Price Missing — owned cards with no market price at all can't
+  // contribute to portfolio value or any trend; surface how many so the
+  // user knows the gap exists, not just a silently-low number elsewhere.
+  const uniqueCards = new Map<string, boolean>(); // cardId -> has a price
+  for (const inst of instances) {
+    const hasPrice = inst.variant.currentPrice?.marketPriceUsd != null;
+    uniqueCards.set(inst.variant.card.id, uniqueCards.get(inst.variant.card.id) || hasPrice);
+  }
+  const missingCount = [...uniqueCards.values()].filter((hasPrice) => !hasPrice).length;
+
+  if (missingCount > 0) {
+    insights.push({
+      userId,
+      type: "PRICE_MISSING",
+      category: "HEALTH",
+      severity: "INFO",
+      score: 60,
+      payload: JSON.stringify({ missingCount }),
+      status: "NEW",
+      sourceEngine: "recommendation-engine-v1",
+    });
+  }
+
+  // Rule 4: Wishlist Watch — items currently priced at or below the user's
+  // own target (Wishlist.priceAlert), using the same cheapest-variant
+  // comparison the wishlist page itself uses (see wishlist-price.ts).
+  const triggered = wishlist.filter((w) => {
+    const price = getWishlistMarketPrice(w);
+    return price != null && w.priceAlert != null && price <= w.priceAlert;
+  });
+
+  if (triggered.length > 0) {
+    insights.push({
+      userId,
+      type: "WISHLIST_WATCH",
+      category: "PORTFOLIO",
+      severity: "INFO",
+      score: 90, // a hit target price is actionable now, not just informational
+      payload: JSON.stringify({ watchCount: triggered.length }),
+      status: "NEW",
+      sourceEngine: "recommendation-engine-v1",
+    });
   }
 
   // Insert all generated insights

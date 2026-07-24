@@ -461,7 +461,10 @@ async function main() {
       for (const name of row.persons) personIds.push(await builder.getOrCreatePerson(name));
     }
 
-    await prisma.card.create({
+    const teamId = row.team ? await builder.getOrCreateTeam(row.team) : undefined;
+    const insertId = row.type ? await builder.getOrCreateInsert(row.type, set.id) : undefined;
+
+    const card = await prisma.card.create({
       data: {
         id: cardId,
         name: row.name,
@@ -469,8 +472,11 @@ async function main() {
         setId: set.id,
         supertype: row.type ?? "Base",
         persons: personIds.length > 0 ? { connect: personIds.map((id) => ({ id })) } : undefined,
+        teams: teamId ? { connect: { id: teamId } } : undefined,
       },
     });
+
+    await prisma.variant.create({ data: { cardId: card.id, printingId: basePrintingId, insertId } });
 
     created++;
     if ((i + 1) % 50 === 0) console.log(`  [${i + 1}/${ALL_CARDS.length}] created=${created}`);

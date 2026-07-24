@@ -1,17 +1,25 @@
 import { prisma } from "@/lib/prisma";
+import { computeHealthFactors, healthScoreFromFactors, type HealthFactors } from "./health-factors";
+import type { WishlistPriceRow } from "../wishlist-price";
+
+type MetricsInstance = {
+  variantId: string;
+  purchasePrice: number | null;
+  variant: { card: { id: string }; currentPrice: { marketPriceUsd: number | null } | null };
+};
 
 /**
  * Level 1: Deterministic Metrics Calculation
  * Runs purely on facts (events, instances, real market listings) and updates
  * the UserMetrics cache. No fabricated numbers — anything we can't compute
  * from real data is left at a neutral default (0), not a guessed constant.
+ *
+ * Takes the caller's already-fetched instances (dashboard-data.ts is the one
+ * shared fetch — see ADR-style note there) instead of re-querying; this used
+ * to run its own prisma.instance.findMany, which was one of three
+ * near-identical full-collection queries fired per dashboard load.
  */
-export async function recalculateUserMetrics(userId: string) {
-  const instances = await prisma.instance.findMany({
-    where: { userId },
-    include: { variant: { include: { currentPrice: true } } },
-  });
-
+export async function recalculateUserMetrics(userId: string, instances: MetricsInstance[], wishlist: WishlistPriceRow[] = []) {
   let portfolioValue = 0;
   let costBasis = 0;
   let pricedInstanceCount = 0;
@@ -69,14 +77,10 @@ export async function recalculateUserMetrics(userId: string) {
         )
       : 0;
 
-  // Health score: penalize a high duplicate ratio — simple, transparent,
-  // fully real-data-derived formula.
-  let healthScore = 100;
-  if (instances.length > 0) {
-    const dupeRatio = duplicateCount / instances.length;
-    healthScore -= Math.round(dupeRatio * 40); // up to -40 for heavy duplication
-  }
-  healthScore = Math.max(0, Math.min(100, healthScore));
+  // Health score: the average of 5 real factors (pricing coverage, metadata
+  // quality, images, duplicate ratio, wishlist coverage) — see health-factors.ts.
+  const healthFactors: HealthFactors = await computeHealthFactors(instances, wishlist);
+  const healthScore = healthScoreFromFactors(healthFactors);
 
   const metrics = await prisma.userMetrics.upsert({
     where: { userId },
@@ -84,5 +88,5 @@ export async function recalculateUserMetrics(userId: string) {
     create: { userId, portfolioValue, costBasis, healthScore, duplicateCount, completionScore, liquidityScore, unrealizedGain, unrealizedGainPercent },
   });
 
-  return metrics;
+  return { metrics, healthFactors };
 }

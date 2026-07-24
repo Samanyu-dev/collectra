@@ -1,20 +1,26 @@
-import { getIntelligenceFeed } from '@/lib/intelligence/feed/service';
-import { getDashboardExtended } from '@/lib/intelligence/feed/dashboard-extended';
-import { prisma } from "@/lib/prisma";
+import { getDashboardData } from '@/lib/intelligence/feed/dashboard-data';
+import { getCatalogWidgets } from '@/lib/intelligence/market/catalog-widgets';
 import { requireUser } from "@/lib/auth/session";
 import { timeAgo } from "@/lib/time-ago";
 import {
   TrendingUp, Activity, CheckCircle, ArrowRight, ShieldAlert, BadgeCent,
   Plus, Minus, Star, Shield, Heart, Upload, History, BarChart3,
+  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { PortfolioChart } from '@/components/ui/portfolio-chart';
 import { MarketMoversSection } from '@/components/ui/market-movers';
+import { TopValuableCardsSection } from '@/components/ui/top-valuable-cards';
 import { FranchiseBreakdownSection } from '@/components/ui/franchise-breakdown';
+import { CollectionAllocation } from '@/components/ui/collection-allocation';
+import { CollectionHealthBreakdown } from '@/components/ui/collection-health-breakdown';
+import { CollectionGapsSection } from '@/components/ui/collection-gaps';
+import { DashboardSearch } from '@/components/ui/dashboard-search';
+import { MostVolatileSection } from '@/components/ui/most-volatile';
 
 export const dynamic = 'force-dynamic';
 
-const EVENT_META: Record<string, { label: string; icon: any }> = {
+const EVENT_META: Record<string, { label: string; icon: LucideIcon }> = {
   CARD_ADDED: { label: 'Added', icon: Plus },
   CARD_REMOVED: { label: 'Removed', icon: Minus },
   FAVORITED: { label: 'Favorited', icon: Star },
@@ -38,26 +44,32 @@ export default function IntelligenceOSHome() {
 async function IntelligenceFeed() {
   const user = await requireUser();
 
-  const [{ metrics, insights }, extended, recentEvents, wishlistCount] = await Promise.all([
-    getIntelligenceFeed(user.id),
-    getDashboardExtended(user.id),
-    prisma.event.findMany({
-      where: { userId: user.id },
-      orderBy: { timestamp: 'desc' },
-      take: 6,
-      include: { instance: { include: { variant: { include: { card: true } } } } },
-    }),
-    prisma.wishlist.count({ where: { userId: user.id } }),
-  ]);
-
-  const { portfolioHistory, portfolioChange7dPercent, marketMovers, franchiseBreakdown } = extended;
+  const [
+    {
+      metrics,
+      healthFactors,
+      insights,
+      portfolioHistory,
+      portfolioChange7dPercent,
+      portfolioChangeToday,
+      franchiseBreakdown,
+      collectionGaps,
+      mostVolatile,
+      groupedActivity,
+      wishlistCount,
+    },
+    { gainers, losers, recentlyPriced, topValuable },
+  ] = await Promise.all([getDashboardData(user.id), getCatalogWidgets()]);
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-12">
 
-      <div>
-        <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard</h1>
-        <p className="text-foreground/50 mt-1">Your collection, at a glance.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard</h1>
+          <p className="text-foreground/50 mt-1">Your collection, at a glance.</p>
+        </div>
+        <DashboardSearch />
       </div>
 
       {/* Level 1: Metrics Overview */}
@@ -67,12 +79,25 @@ async function IntelligenceFeed() {
             <TrendingUp size={16} /> Portfolio Value
           </div>
           <h1 className="text-4xl sm:text-5xl font-display font-bold">
-            ${metrics.portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            ${metrics.portfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </h1>
-          {portfolioChange7dPercent != null && (
-            <span className={`text-sm font-mono mt-2 ${portfolioChange7dPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {portfolioChange7dPercent >= 0 ? '↑' : '↓'} {Math.abs(portfolioChange7dPercent).toFixed(1)}% (7d)
-            </span>
+          {portfolioChangeToday != null ? (
+            <div className="mt-2 space-y-0.5">
+              <span className={`text-sm font-mono ${portfolioChangeToday.changeAbs >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {portfolioChangeToday.changeAbs >= 0 ? '▲' : '▼'} $
+                {Math.abs(portfolioChangeToday.changeAbs).toLocaleString("en-US", { maximumFractionDigits: 0 })} today
+                {portfolioChangeToday.changePercent != null && (
+                  <> ({portfolioChangeToday.changePercent >= 0 ? '+' : ''}{portfolioChangeToday.changePercent.toFixed(1)}%)</>
+                )}
+              </span>
+              <p className="text-xs text-foreground/40">Based on {portfolioChangeToday.pricedCardCount} priced card{portfolioChangeToday.pricedCardCount === 1 ? '' : 's'}</p>
+            </div>
+          ) : (
+            portfolioChange7dPercent != null && (
+              <span className={`text-sm font-mono mt-2 ${portfolioChange7dPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {portfolioChange7dPercent >= 0 ? '↑' : '↓'} {Math.abs(portfolioChange7dPercent).toFixed(1)}% (7d)
+              </span>
+            )
           )}
         </div>
 
@@ -116,12 +141,10 @@ async function IntelligenceFeed() {
         </div>
         {portfolioHistory.length < 2 ? (
           <div className="p-12 rounded-3xl border border-foreground/10 border-dashed text-center text-foreground/40">
-            {portfolioHistory.length === 0
-              ? 'Add purchase dates to your cards to see your portfolio grow over time.'
-              : 'Not enough data points yet — add a few more purchases to see the trend.'}
+            No pricing history yet — this fills in once your owned cards start picking up real market price observations.
           </div>
         ) : (
-          <div className="h-64 rounded-3xl bg-foreground/5 border border-foreground/10 p-6">
+          <div className="h-72 rounded-3xl bg-foreground/5 border border-foreground/10 p-6">
             <PortfolioChart data={portfolioHistory} />
           </div>
         )}
@@ -130,7 +153,7 @@ async function IntelligenceFeed() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Level 3: The Intelligence Stream (Insights) */}
         <section className="lg:col-span-2">
-          <h2 className="text-2xl font-display font-medium mb-6">Actionable Insights</h2>
+          <h2 className="text-2xl font-display font-medium mb-6">Action Center</h2>
 
           {insights.length === 0 ? (
             <div className="p-12 rounded-3xl border border-foreground/10 border-dashed text-center text-foreground/40">
@@ -176,8 +199,31 @@ async function IntelligenceFeed() {
                       </>
                     )}
 
+                    {insight.type === 'PRICE_MISSING' && (
+                      <>
+                        <h3 className="text-2xl font-display font-bold mb-2">Price Missing</h3>
+                        <p className="text-foreground/60 mb-6 flex-1">
+                          <strong className="text-foreground">{payload.missingCount} card{payload.missingCount === 1 ? '' : 's'}</strong> in your collection have no market price yet — fetch pricing to see their real value.
+                        </p>
+                      </>
+                    )}
+
+                    {insight.type === 'WISHLIST_WATCH' && (
+                      <>
+                        <h3 className="text-2xl font-display font-bold mb-2">Wishlist Watch</h3>
+                        <p className="text-foreground/60 mb-6 flex-1">
+                          <strong className="text-foreground">{payload.watchCount} card{payload.watchCount === 1 ? '' : 's'}</strong> on your wishlist just hit your target price.
+                        </p>
+                      </>
+                    )}
+
                     <Link
-                      href={insight.type === 'SELL_DUPLICATE' ? '/shelf' : insight.type === 'SET_COMPLETION' ? '/projects' : '/statistics'}
+                      href={
+                        insight.type === 'SELL_DUPLICATE' ? '/shelf'
+                        : insight.type === 'SET_COMPLETION' ? '/projects'
+                        : insight.type === 'WISHLIST_WATCH' ? '/wishlist'
+                        : '/statistics'
+                      }
                       className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                       Take Action <ArrowRight size={16} />
@@ -195,25 +241,31 @@ async function IntelligenceFeed() {
             <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
               <History size={16} /> Recent Activity
             </div>
-            {recentEvents.length === 0 ? (
+            {groupedActivity.length === 0 ? (
               <p className="text-sm text-foreground/40">Nothing yet — actions you take show up here.</p>
             ) : (
               <ul className="space-y-3">
-                {recentEvents.map((event) => {
-                  const meta = EVENT_META[event.type] ?? { label: event.type, icon: History };
+                {groupedActivity.map((group, i) => {
+                  const meta = EVENT_META[group.type] ?? { label: group.type, icon: History };
                   const Icon = meta.icon;
-                  const cardName = event.instance?.variant.card.name;
                   return (
-                    <li key={event.id} className="flex items-center gap-3 text-sm">
+                    <li key={i} className="flex items-center gap-3 text-sm">
                       <div className="w-7 h-7 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
                         <Icon size={13} className="text-foreground/60" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate">
-                          <span className="text-foreground/50">{meta.label}</span>{cardName ? <> <span className="text-foreground font-medium">{cardName}</span></> : null}
+                          <span className="text-foreground/50">{meta.label}</span>{' '}
+                          {group.count > 1 ? (
+                            <span className="text-foreground font-medium">
+                              {group.count} {group.setName ?? 'items'}
+                            </span>
+                          ) : group.setName ? (
+                            <span className="text-foreground font-medium">1 {group.setName} card</span>
+                          ) : null}
                         </p>
                       </div>
-                      <span className="text-foreground/30 text-xs shrink-0">{timeAgo(event.timestamp)}</span>
+                      <span className="text-foreground/30 text-xs shrink-0">{timeAgo(group.latestTimestamp)}</span>
                     </li>
                   );
                 })}
@@ -238,11 +290,24 @@ async function IntelligenceFeed() {
         </aside>
       </div>
 
-      {/* Level 5: Market Movers + Franchise Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MarketMoversSection movers={marketMovers} />
-        <FranchiseBreakdownSection breakdown={franchiseBreakdown} />
+      {/* Level 4.5: Health Breakdown + Biggest Collection Gaps + Most Volatile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <CollectionHealthBreakdown score={metrics.healthScore} factors={healthFactors} />
+        <CollectionGapsSection gaps={collectionGaps} />
+        <MostVolatileSection entries={mostVolatile} />
       </div>
+
+      {/* Level 5: Market Movers + Franchise Breakdown / Allocation */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MarketMoversSection gainers={gainers} losers={losers} recentlyPriced={recentlyPriced} />
+        <div className="space-y-6">
+          <FranchiseBreakdownSection breakdown={franchiseBreakdown} />
+          <CollectionAllocation breakdown={franchiseBreakdown} />
+        </div>
+      </div>
+
+      {/* Level 6: Top Valuable Cards — catalog-wide */}
+      <TopValuableCardsSection cards={topValuable} />
 
     </div>
   );

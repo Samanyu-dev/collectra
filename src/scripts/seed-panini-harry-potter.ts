@@ -186,7 +186,7 @@ async function main() {
       }
     }
 
-    await prisma.card.create({
+    const card = await prisma.card.create({
       data: {
         id: cardId,
         name: row.name,
@@ -196,6 +196,8 @@ async function main() {
         characters: characterIds.length > 0 ? { connect: characterIds.map((id) => ({ id })) } : undefined,
       },
     });
+
+    await prisma.variant.create({ data: { cardId: card.id, printingId: basePrintingId } });
 
     created++;
     if ((i + 1) % 20 === 0) console.log(`  [${i + 1}/${ALL_CARDS.length}] created=${created}`);

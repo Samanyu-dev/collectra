@@ -28,7 +28,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatPrice(price: number): string {
-  return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function PriceHistoryChart({
@@ -128,7 +128,7 @@ export function PriceHistoryChart({
               />
               <YAxis
                 domain={[minVal, maxVal]}
-                tickFormatter={(v: number) => `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                tickFormatter={(v: number) => `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}

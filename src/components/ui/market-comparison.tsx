@@ -5,12 +5,16 @@ import type { PriceHistoryResult } from "@/lib/pricing/history";
 
 function formatPrice(price: number | null): string {
   if (price == null) return "—";
-  return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function timeAgo(date: Date | null): string {
+function timeAgo(date: Date | string | null): string {
   if (!date) return "never";
-  const ms = Date.now() - date.getTime();
+  // Dates arrive as ISO strings once they've crossed the server→client
+  // boundary (the `Date` in PriceHistoryResult's type is what the server
+  // sees, not the runtime shape here) — same coercion price-tag.tsx uses.
+  const d = typeof date === "string" ? new Date(date) : date;
+  const ms = Date.now() - d.getTime();
   const mins = Math.round(ms / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;

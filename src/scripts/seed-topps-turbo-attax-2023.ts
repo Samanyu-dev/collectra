@@ -492,6 +492,9 @@ async function main() {
       }
     }
 
+    const teamId = row.team ? await builder.getOrCreateTeam(row.team) : undefined;
+    const insertId = row.type ? await builder.getOrCreateInsert(row.type, set.id) : undefined;
+
     const card = await prisma.card.create({
       data: {
         id: cardId,
@@ -500,11 +503,12 @@ async function main() {
         setId: set.id,
         supertype: row.type,
         persons: personIds.length > 0 ? { connect: personIds.map((id) => ({ id })) } : undefined,
+        teams: teamId ? { connect: { id: teamId } } : undefined,
       },
     });
 
     await prisma.variant.create({
-      data: { cardId: card.id, printingId: basePrintingId },
+      data: { cardId: card.id, printingId: basePrintingId, insertId },
     });
 
     created++;

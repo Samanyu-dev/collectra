@@ -5,8 +5,12 @@ import { builder } from "../ingestion/engine/builder";
  * Seeds the 2025/26 Topps Match Attax football trading card set.
  * 315+ cards featuring football clubs, players, and special subsets.
  */
-const SET_ID = "topps-match-attax-2025-26";
-const SET_NAME = "Topps Match Attax 2025/26";
+// Must match the set ID used by curate-topps-match-attax-2025-26.ts /
+// curate-topps-match-attax-inserts.ts ("topps-matchattax-2025-26", no
+// hyphen between "match" and "attax") — a mismatched ID here previously
+// created a whole second duplicate Set with 0 Variants per Card.
+const SET_ID = "topps-matchattax-2025-26";
+const SET_NAME = "Match Attax 2025/26";
 
 interface CardRow {
   number: string;
@@ -741,11 +745,14 @@ async function main() {
   const franchiseId = await builder.getOrCreateFranchise("Football (Soccer)", universeId);
   const brandId = await builder.getOrCreateBrand("Match Attax", manufacturerId);
   const seriesId = await builder.getOrCreateSeries("Match Attax 2025/26", franchiseId, brandId);
+  // Don't pass printedTotal here — this set is shared with
+  // curate-topps-match-attax-2025-26.ts / -inserts.ts, which may have
+  // already seeded more cards than ALL_CARDS.length in this file covers.
+  // printedTotal is recomputed from the actual card count after the loop.
   const set = await builder.getOrCreateSet({
     id: SET_ID,
     name: SET_NAME,
     seriesId,
-    printedTotal: ALL_CARDS.length,
   });
   const basePrintingId = await builder.getOrCreatePrinting("Base");
 
@@ -754,7 +761,8 @@ async function main() {
   const t0 = Date.now();
 
   for (const [i, row] of ALL_CARDS.entries()) {
-    const cardId = `${SET_ID}-${String(row.number).toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+    const slug = String(row.number).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const cardId = `${SET_ID}-${slug}`;
     const existing = await prisma.card.findUnique({ where: { id: cardId } });
     if (existing) { skipped++; continue; }
 
@@ -762,23 +770,32 @@ async function main() {
     if (row.persons) {
       for (const name of row.persons) personIds.push(await builder.getOrCreatePerson(name));
     }
+    const teamId = row.team ? await builder.getOrCreateTeam(row.team) : undefined;
+    const isTeamBadge = row.name.endsWith("Team Badge");
 
-    await prisma.card.create({
+    const card = await prisma.card.create({
       data: {
         id: cardId,
         name: row.name,
         number: String(row.number),
         setId: set.id,
-        supertype: row.type ?? "Base",
+        supertype: isTeamBadge ? "Team Badge" : "Player",
+        subtypes: row.type && row.type !== "Base" ? row.type : undefined,
         persons: personIds.length > 0 ? { connect: personIds.map((id) => ({ id })) } : undefined,
+        teams: teamId ? { connect: { id: teamId } } : undefined,
       },
     });
+
+    await prisma.variant.create({ data: { cardId: card.id, printingId: basePrintingId } });
 
     created++;
     if ((i + 1) % 50 === 0) console.log(`  [${i + 1}/${ALL_CARDS.length}] created=${created}`);
   }
 
-  console.log(`Done. Created ${created} cards, skipped ${skipped}. Set: ${SET_NAME} (${(Date.now() - t0) / 1000}s)`);
+  const finalCount = await prisma.card.count({ where: { setId: set.id } });
+  await prisma.set.update({ where: { id: set.id }, data: { printedTotal: finalCount } });
+
+  console.log(`Done. Created ${created} cards, skipped ${skipped}. Set: ${SET_NAME} (${(Date.now() - t0) / 1000}s). printedTotal now ${finalCount}.`);
 }
 
 main()

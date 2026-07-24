@@ -16,7 +16,19 @@ export default async function SettingsPage() {
 
   return (
     <SettingsClient
-      user={user ? { name: user.name, email: user.email } : null}
+      user={
+        user
+          ? {
+              name: user.name,
+              email: user.email,
+              username: user.username,
+              bio: user.bio,
+              avatarUrl: user.avatarUrl,
+              isPublic: user.isPublic,
+              showValuePublicly: user.showValuePublicly,
+            }
+          : null
+      }
       stats={{ instanceCount, wishlistCount, activeProjectCount, migrationCount }}
     />
   );
