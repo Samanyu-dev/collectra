@@ -6,7 +6,7 @@ import { AmbientBackground } from './ambient-background';
 import { CardDeepZoom } from './card-deep-zoom';
 import { VariantShelf } from './variant-shelf';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, Calendar, Users, Layers, Tag, PackageOpen, Check, Heart, Shield, Star, Share2, ChevronLeft, ChevronRight, Keyboard } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Calendar, Users, Layers, Tag, PackageOpen, Check, Heart, Shield, Star, Share2, ChevronLeft, ChevronRight, Keyboard, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
 import { decrementVariantQuantity, incrementVariantQuantity, toggleFavorite, toggleVaulted } from '@/lib/actions/collection';
 import { toggleWishlist } from '@/lib/actions/wishlist';
@@ -15,6 +15,8 @@ import { ProgressBar } from './collectra-ui';
 import { QuantityControl } from './quantity-control';
 import { getVariantCardType, getVariantRarityLabel } from '@/lib/collection/classification';
 import { toPriceDisplay } from '@/lib/pricing/display';
+import { PriceHistoryChart } from './price-history-chart';
+import { MarketComparison } from './market-comparison';
 
 interface RelatedCard {
   id: string;
@@ -23,14 +25,27 @@ interface RelatedCard {
   images: { type: string; url: string }[];
 }
 
+interface PriceHistoryJson {
+  points: { date: string; priceUsd: number; source: string; kind: string }[];
+  trend: "up" | "down" | "flat";
+  trendPercent: number | null;
+  lowestPrice: number | null;
+  highestPrice: number | null;
+  averagePrice: number | null;
+  lastUpdated: string | null;
+  observationCount: number;
+}
+
 interface CardClientExperienceProps {
   card: any; // Deep, page-specific Prisma include shape — not worth a dedicated type
   topVariantId: string;
   relatedCards?: RelatedCard[];
+  priceHistoryByVariant?: Record<string, PriceHistoryJson>;
 }
 
-export function CardClientExperience({ card, topVariantId, relatedCards = [] }: CardClientExperienceProps) {
+export function CardClientExperience({ card, topVariantId, relatedCards = [], priceHistoryByVariant = {} }: CardClientExperienceProps) {
   const [activeVariantId, setActiveVariantId] = useState(topVariantId);
+  const [priceHistoryRange, setPriceHistoryRange] = useState<"7d" | "30d" | "90d" | "all">("90d");
   const [quantityByVariant, setQuantityByVariant] = useState<Record<string, number>>(() =>
     Object.fromEntries(card.variants.map((v: any) => [v.id, v.ownedQuantity ?? 0]))
   );
@@ -494,6 +509,24 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [] }: 
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Price History + Market Comparison */}
+        <div className="space-y-6">
+          <h3 className="text-primary font-mono text-sm tracking-widest uppercase flex items-center gap-2">
+            <TrendingUp size={16} /> Pricing & Market Data
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <PriceHistoryChart
+              data={(priceHistoryByVariant[activeVariantId]?.points ?? []) as any}
+              onRangeChange={setPriceHistoryRange}
+              activeRange={priceHistoryRange}
+            />
+            <MarketComparison
+              history={(priceHistoryByVariant[activeVariantId] ?? { points: [], trend: "flat" as const, trendPercent: null, lowestPrice: null, highestPrice: null, averagePrice: null, lastUpdated: null, observationCount: 0 }) as any}
+              currentPrice={activeVariant.currentPrice?.marketPriceUsd ?? null}
+            />
           </div>
         </div>
 

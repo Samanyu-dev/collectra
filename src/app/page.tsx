@@ -1,12 +1,16 @@
 import { getIntelligenceFeed } from '@/lib/intelligence/feed/service';
+import { getDashboardExtended } from '@/lib/intelligence/feed/dashboard-extended';
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/session";
 import { timeAgo } from "@/lib/time-ago";
 import {
   TrendingUp, Activity, CheckCircle, ArrowRight, ShieldAlert, BadgeCent,
-  Plus, Minus, Star, Shield, Heart, Upload, History,
+  Plus, Minus, Star, Shield, Heart, Upload, History, BarChart3,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PortfolioChart } from '@/components/ui/portfolio-chart';
+import { MarketMoversSection } from '@/components/ui/market-movers';
+import { FranchiseBreakdownSection } from '@/components/ui/franchise-breakdown';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,8 +38,9 @@ export default function IntelligenceOSHome() {
 async function IntelligenceFeed() {
   const user = await requireUser();
 
-  const [{ metrics, insights }, recentEvents, wishlistCount] = await Promise.all([
+  const [{ metrics, insights }, extended, recentEvents, wishlistCount] = await Promise.all([
     getIntelligenceFeed(user.id),
+    getDashboardExtended(user.id),
     prisma.event.findMany({
       where: { userId: user.id },
       orderBy: { timestamp: 'desc' },
@@ -45,8 +50,10 @@ async function IntelligenceFeed() {
     prisma.wishlist.count({ where: { userId: user.id } }),
   ]);
 
+  const { portfolioHistory, portfolioChange7dPercent, marketMovers, franchiseBreakdown } = extended;
+
   return (
-    <div className="max-w-[1200px] mx-auto space-y-12">
+    <div className="max-w-[1400px] mx-auto space-y-12">
 
       <div>
         <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard</h1>
@@ -62,6 +69,11 @@ async function IntelligenceFeed() {
           <h1 className="text-4xl sm:text-5xl font-display font-bold">
             ${metrics.portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </h1>
+          {portfolioChange7dPercent != null && (
+            <span className={`text-sm font-mono mt-2 ${portfolioChange7dPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {portfolioChange7dPercent >= 0 ? '↑' : '↓'} {Math.abs(portfolioChange7dPercent).toFixed(1)}% (7d)
+            </span>
+          )}
         </div>
 
         <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10 flex flex-col justify-between">
@@ -97,8 +109,26 @@ async function IntelligenceFeed() {
         </Link>
       </div>
 
+      {/* Level 2: Portfolio Chart — Full Width */}
+      <section>
+        <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
+          <BarChart3 size={16} /> Portfolio Over Time
+        </div>
+        {portfolioHistory.length < 2 ? (
+          <div className="p-12 rounded-3xl border border-foreground/10 border-dashed text-center text-foreground/40">
+            {portfolioHistory.length === 0
+              ? 'Add purchase dates to your cards to see your portfolio grow over time.'
+              : 'Not enough data points yet — add a few more purchases to see the trend.'}
+          </div>
+        ) : (
+          <div className="h-64 rounded-3xl bg-foreground/5 border border-foreground/10 p-6">
+            <PortfolioChart data={portfolioHistory} />
+          </div>
+        )}
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Level 2: The Intelligence Stream (Insights) */}
+        {/* Level 3: The Intelligence Stream (Insights) */}
         <section className="lg:col-span-2">
           <h2 className="text-2xl font-display font-medium mb-6">Actionable Insights</h2>
 
@@ -159,7 +189,7 @@ async function IntelligenceFeed() {
           )}
         </section>
 
-        {/* Level 3: Recent Activity + Wishlist */}
+        {/* Level 4: Recent Activity + Wishlist */}
         <aside className="space-y-6">
           <div className="p-6 rounded-3xl bg-foreground/5 border border-foreground/10">
             <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
@@ -206,6 +236,12 @@ async function IntelligenceFeed() {
             </div>
           </Link>
         </aside>
+      </div>
+
+      {/* Level 5: Market Movers + Franchise Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MarketMoversSection movers={marketMovers} />
+        <FranchiseBreakdownSection breakdown={franchiseBreakdown} />
       </div>
 
     </div>

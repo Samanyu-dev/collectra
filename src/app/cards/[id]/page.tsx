@@ -5,6 +5,7 @@ import { getImagesForEntity, getImagesForEntities } from "@/lib/media/resolve";
 import { getFavoritedVariantIds, getOwnedVariantQuantities, getVaultedVariantIds } from "@/lib/actions/collection";
 import { getWishlistedCardIds } from "@/lib/actions/wishlist";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getPriceHistoryForVariants } from "@/lib/pricing/history";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,7 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
     userInstances,
     ownedSetRows,
     marketplaceListings,
+    priceHistoryMap,
   ] = await Promise.all([
     getImagesForEntity("Card", card.id),
     getImagesForEntities("Product", Array.from(productIds)),
@@ -118,6 +120,8 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
         seller: { select: { username: true, name: true } },
       },
     }),
+    // Fetch price history for all variants (default 90d range)
+    getPriceHistoryForVariants(variantIds, "90d"),
   ]);
 
   const relatedCardImages = await getImagesForEntities("Card", relatedCardsRaw.map((c) => c.id));
@@ -184,5 +188,13 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
     .map(v => ({ id: v.id, price: v.currentPrice?.marketPriceUsd ?? 0 }))
     .sort((a, b) => b.price - a.price)[0];
 
-  return <CardClientExperience card={cardWithImages} topVariantId={topVariant?.id || card.variants[0]?.id} relatedCards={relatedCards} />;
+  // Serialize price history map to JSON for client component (Map doesn't serialize)
+  const priceHistoryJson = Object.fromEntries(
+    [...priceHistoryMap.entries()].map(([id, result]) => [
+      id,
+      { ...result, lastUpdated: result.lastUpdated?.toISOString() ?? null },
+    ])
+  );
+
+  return <CardClientExperience card={cardWithImages} topVariantId={topVariant?.id || card.variants[0]?.id} relatedCards={relatedCards} priceHistoryByVariant={priceHistoryJson} />;
 }
