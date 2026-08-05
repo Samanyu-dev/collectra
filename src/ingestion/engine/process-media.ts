@@ -148,6 +148,15 @@ export async function processMediaRow(mediaId: string): Promise<ProcessMediaResu
         perceptualHash: analysis.perceptualHash,
         checksumVerified: true,
         dimensionsVerified: !!(metadata.width && metadata.width >= MIN_ACCEPTABLE_WIDTH),
+        // A row that failed once (status flipped to FAILED in the catch
+        // block below) and then succeeded on a later retry was never being
+        // un-flagged here — this update touched every other field but not
+        // status, so a fully re-hosted, perfectly good image stayed
+        // permanently invisible (getPrimaryMedia/getAllMedia both filter on
+        // status === "READY"). Real impact found live: 23 EBAY_LISTING_PHOTO
+        // rows with provider=supabase (successfully re-hosted) stuck at
+        // status=FAILED from an earlier attempt.
+        status: "READY",
       },
     });
 
