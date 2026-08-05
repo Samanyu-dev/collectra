@@ -111,7 +111,7 @@ export function NewListingClient({ instances, initialInstanceId }: { instances: 
                   className="text-left rounded-xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 p-2 transition-colors"
                 >
                   <div className="relative aspect-[63/88] rounded-lg overflow-hidden bg-foreground/10 mb-2">
-                    {inst.imageUrl && <Image src={inst.imageUrl} alt={inst.cardName} fill className="object-cover" unoptimized />}
+                    {inst.imageUrl && <Image src={inst.imageUrl} alt={inst.cardName} fill className="object-cover" />}
                   </div>
                   <p className="text-xs font-medium line-clamp-1">{inst.cardName}</p>
                   <p className="text-[10px] text-foreground/40">
@@ -128,7 +128,7 @@ export function NewListingClient({ instances, initialInstanceId }: { instances: 
         <form onSubmit={handleCreateDraft} className="space-y-5">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/5 border border-foreground/10">
             <div className="relative w-12 h-16 rounded-lg overflow-hidden bg-foreground/10 shrink-0">
-              {selected.imageUrl && <Image src={selected.imageUrl} alt={selected.cardName} fill className="object-cover" unoptimized />}
+              {selected.imageUrl && <Image src={selected.imageUrl} alt={selected.cardName} fill className="object-cover" />}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{selected.cardName}</p>
@@ -193,7 +193,7 @@ export function NewListingClient({ instances, initialInstanceId }: { instances: 
           <div className="grid grid-cols-3 gap-3">
             {photos.map((url) => (
               <div key={url} className="relative aspect-[63/88] rounded-lg overflow-hidden bg-foreground/10">
-                <Image src={url} alt="" fill className="object-cover" unoptimized />
+                <Image src={url} alt="" fill className="object-cover" />
               </div>
             ))}
             <button

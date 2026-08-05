@@ -133,7 +133,7 @@ export function DashboardSearch() {
                     onClick={() => setOpen(false)}
                   >
                     <div className="relative w-7 h-9 rounded-md overflow-hidden bg-foreground/10 shrink-0">
-                      {image && <Image src={image.url} alt={card.name} fill className="object-cover" unoptimized />}
+                      {image && <Image src={image.url} alt={card.name} fill className="object-cover" sizes="28px" />}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm truncate">{card.name}</p>

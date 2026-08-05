@@ -245,7 +245,7 @@ export default function SearchPage() {
                         className={`flex items-center gap-4 bg-card border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/50'}`}
                       >
                         <div className="relative w-12 h-16 rounded-md overflow-hidden bg-foreground/5 shrink-0">
-                          {image && <Image src={image.url} alt={card.name} fill className="object-cover" unoptimized />}
+                          {image && <Image src={image.url} alt={card.name} fill className="object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors"><HighlightMatch text={card.name} query={query} /></p>
@@ -278,7 +278,7 @@ export default function SearchPage() {
                         className={`flex items-center gap-4 bg-card border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/50'}`}
                       >
                         <div className="relative w-12 h-12 rounded-md overflow-hidden bg-foreground/5 shrink-0 flex items-center justify-center">
-                          {image ? <Image src={image.url} alt={product.name} fill className="object-contain" unoptimized /> : <PackageOpen size={18} className="text-foreground/30" />}
+                          {image ? <Image src={image.url} alt={product.name} fill className="object-contain" /> : <PackageOpen size={18} className="text-foreground/30" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors"><HighlightMatch text={product.name} query={query} /></p>

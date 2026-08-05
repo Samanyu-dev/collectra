@@ -239,7 +239,7 @@ export function CommandPalette() {
                     return (
                       <ResultRow key={card.id} id={`cp-item-${card.id}`} index={idx} active={activeIndex === idx} onClick={() => navigate(flatItems[idx])} onMouseEnter={() => setActiveIndex(idx)}>
                         <div className="w-8 h-11 bg-foreground/5 shrink-0 rounded overflow-hidden relative border border-foreground/10">
-                          {thumb && <Image src={thumb} alt={card.name} fill className="object-cover" unoptimized />}
+                          {thumb && <Image src={thumb} alt={card.name} fill className="object-cover" />}
                         </div>
                         <div className="min-w-0">
                           <div className="text-foreground font-medium truncate"><HighlightMatch text={card.name} query={query} /></div>
@@ -259,7 +259,7 @@ export function CommandPalette() {
                     return (
                       <ResultRow key={product.id} id={`cp-item-${product.id}`} index={idx} active={activeIndex === idx} onClick={() => navigate(flatItems[idx])} onMouseEnter={() => setActiveIndex(idx)}>
                         <div className="w-10 h-10 bg-foreground/5 shrink-0 rounded-lg overflow-hidden relative border border-foreground/10 flex items-center justify-center">
-                          {thumb ? <Image src={thumb} alt={product.name} fill className="object-contain" unoptimized /> : <PackageOpen size={16} className="text-foreground/20" />}
+                          {thumb ? <Image src={thumb} alt={product.name} fill className="object-contain" /> : <PackageOpen size={16} className="text-foreground/20" />}
                         </div>
                         <div className="min-w-0">
                           <div className="text-foreground font-medium truncate"><HighlightMatch text={product.name} query={query} /></div>

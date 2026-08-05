@@ -77,7 +77,7 @@ export function SellingClient({ listings }: { listings: ListingRow[] }) {
             <div key={l.id} className="rounded-2xl border border-foreground/10 bg-foreground/5 overflow-hidden">
               <div className="p-3 flex items-center gap-3">
                 <Link href={`/marketplace/${l.id}`} className="relative w-12 h-16 rounded-lg overflow-hidden bg-foreground/10 shrink-0">
-                  {l.imageUrl && <Image src={l.imageUrl} alt={l.cardName} fill className="object-cover" unoptimized />}
+                  {l.imageUrl && <Image src={l.imageUrl} alt={l.cardName} fill className="object-cover" />}
                 </Link>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{l.cardName}</p>

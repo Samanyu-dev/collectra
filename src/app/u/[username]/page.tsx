@@ -36,7 +36,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ usern
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-2xl shrink-0 overflow-hidden relative">
             {data.avatarUrl ? (
-              <Image src={data.avatarUrl} alt={data.username} fill className="object-cover" unoptimized />
+              <Image src={data.avatarUrl} alt={data.username} fill className="object-cover" />
             ) : (
               (data.name || data.username)[0]?.toUpperCase()
             )}
@@ -134,7 +134,7 @@ function PullCard({
       className={`flex items-center gap-4 p-4 rounded-2xl bg-foreground/5 border border-foreground/10 hover:border-foreground/20 transition-colors ${glowClass ?? ""}`}
     >
       <div className="w-14 h-20 rounded-lg overflow-hidden bg-foreground/10 shrink-0 relative">
-        {imageUrl && <Image src={imageUrl} alt={cardName} fill className="object-cover" unoptimized />}
+        {imageUrl && <Image src={imageUrl} alt={cardName} fill className="object-cover" />}
       </div>
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 text-[11px] text-foreground/40 uppercase tracking-widest mb-1">

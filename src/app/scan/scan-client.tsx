@@ -117,7 +117,7 @@ export function ScanClient() {
             <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
               {previewUrl && (
                 <div className="relative w-40 h-56 rounded-2xl overflow-hidden border border-foreground/10 shadow-xl">
-                  <Image src={previewUrl} alt="Your scan" fill className="object-cover" unoptimized />
+                  <Image src={previewUrl} alt="Your scan" fill className="object-cover" />
                 </div>
               )}
               <Loader2 size={24} className="animate-spin text-primary" />
@@ -282,7 +282,7 @@ function CandidateCard({ candidate, selected, onSelect }: { candidate: EnrichedC
     >
       <div className="w-14 h-20 relative rounded-lg overflow-hidden bg-foreground/10 shrink-0">
         {candidate.imageUrl ? (
-          <Image src={candidate.imageUrl} alt={candidate.cardName} fill className="object-cover" unoptimized />
+          <Image src={candidate.imageUrl} alt={candidate.cardName} fill className="object-cover" />
         ) : null}
       </div>
       <div className="min-w-0 flex-1">

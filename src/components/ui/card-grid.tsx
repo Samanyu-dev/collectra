@@ -223,7 +223,7 @@ export function CardGrid({
                     isCrestFallback ? (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-foreground/10 to-transparent p-4">
                         <div className="relative w-1/2 aspect-square drop-shadow-lg">
-                          <Image src={thumbImage} alt={card.name} fill className="object-contain" loading="lazy" unoptimized />
+                          <Image src={thumbImage} alt={card.name} fill className="object-contain" loading="lazy" sizes="100px" />
                         </div>
                         <span className="text-[10px] text-foreground/50 text-center leading-tight line-clamp-2">{card.name}</span>
                       </div>
@@ -234,7 +234,7 @@ export function CardGrid({
                         fill
                         className="object-cover"
                         loading="lazy"
-                        unoptimized
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 16vw, 12vw"
                       />
                     )
                   ) : (

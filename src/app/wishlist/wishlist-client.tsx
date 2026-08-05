@@ -74,7 +74,7 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
                 >
                   <Link href={`/cards/${item.cardId}`} className="shrink-0 relative w-[100px] h-[140px] rounded-lg overflow-hidden bg-foreground/5">
                     {image ? (
-                      <Image src={image.url} alt={item.name} fill className="object-cover" unoptimized />
+                      <Image src={image.url} alt={item.name} fill className="object-cover" sizes="100px" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] text-foreground/30 text-center p-1">{item.name}</div>
                     )}

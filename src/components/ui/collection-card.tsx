@@ -61,7 +61,7 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
       >
         <div className="relative w-10 h-14 rounded-lg overflow-hidden bg-foreground/10 shrink-0">
           {picked.url ? (
-            <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} unoptimized />
+            <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} sizes="40px" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[8px] text-foreground/40 text-center p-0.5">
               {item.cardName}
@@ -92,7 +92,7 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
     return (
       <Link href={`/cards/${item.cardId}`} className="relative block aspect-[63/88] rounded-lg overflow-hidden border border-foreground/10 bg-foreground/5">
         {picked.url ? (
-          <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} unoptimized />
+          <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-center p-2">
             <span className="text-[10px] text-foreground/40">{item.cardName}</span>
@@ -122,12 +122,12 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
           picked.fallbackType === "crest" ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-foreground/10 to-transparent p-4">
               <div className="relative w-1/2 aspect-square drop-shadow-lg">
-                <Image src={picked.url} alt={item.cardName} fill className="object-contain" loading={priority ? undefined : "lazy"} unoptimized />
+                <Image src={picked.url} alt={item.cardName} fill className="object-contain" loading={priority ? undefined : "lazy"} sizes="100px" />
               </div>
               <span className="text-[10px] text-foreground/50 text-center leading-tight line-clamp-2">{item.cardName}</span>
             </div>
           ) : (
-            <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} unoptimized />
+            <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw" />
           )
         ) : (
           <div className="w-full h-full flex items-center justify-center p-3 text-center">
@@ -154,7 +154,7 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
           return crest ? (
             <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-full bg-background/80 backdrop-blur-sm border border-foreground/10 p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
               <div className="relative w-full h-full">
-                <Image src={crest} alt="" fill className="object-contain" unoptimized />
+                <Image src={crest} alt="" fill className="object-contain" sizes="28px" />
               </div>
             </div>
           ) : null;

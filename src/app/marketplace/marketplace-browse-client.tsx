@@ -114,7 +114,7 @@ export function MarketplaceBrowseClient({
             <Link href={`/marketplace/${item.id}`} className="block group">
               <div className="relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border border-foreground/5 group-hover:border-foreground/20 transition-colors">
                 {item.imageUrl ? (
-                  <Image src={item.imageUrl} alt={item.cardName} fill className="object-cover" loading="lazy" unoptimized />
+                  <Image src={item.imageUrl} alt={item.cardName} fill className="object-cover" loading="lazy" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[11px] text-foreground/30 text-center p-2">{item.cardName}</div>
                 )}

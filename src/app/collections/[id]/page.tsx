@@ -89,7 +89,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
             const hqImage = pickPrimaryImage(card.images);
             return hqImage ? (
               <div key={card.id} className="relative w-1/2 h-1/2">
-                <Image src={hqImage.url} alt={card.name} fill className="object-cover" unoptimized priority />
+                <Image src={hqImage.url} alt={card.name} fill className="object-cover" priority />
               </div>
             ) : null;
           })}

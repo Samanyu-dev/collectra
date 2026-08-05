@@ -130,7 +130,7 @@ export default async function DiscoveryEnginePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {beautifulArtCards.map((card) => (
                 <Link key={card.id} href={`/cards/${card.id}`} className="group relative block w-full aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl transition-all duration-700 hover:scale-105 hover:-translate-y-2 border border-foreground/10">
-                  <Image src={card.images[0].url} alt={card.name} fill className="object-cover" unoptimized />
+                  <Image src={card.images[0].url} alt={card.name} fill className="object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                     <p className="text-foreground font-medium text-sm truncate">{card.name}</p>
                     <p className="text-foreground/50 text-[10px] uppercase font-mono mt-1">{card.set.name}</p>
@@ -157,7 +157,7 @@ export default async function DiscoveryEnginePage() {
                 {/* Background blurry art hint */}
                 {artist.cards[0]?.images[0]?.url && (
                   <div className="absolute inset-0 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                    <Image src={artist.cards[0].images[0].url} alt="" fill className="object-cover blur-md" unoptimized />
+                    <Image src={artist.cards[0].images[0].url} alt="" fill className="object-cover blur-md" />
                   </div>
                 )}
                 
@@ -191,7 +191,7 @@ export default async function DiscoveryEnginePage() {
                 {/* Background blurry art hint */}
                 {character.cards[0]?.images[0]?.url && (
                   <div className="absolute inset-0 opacity-10 group-hover:opacity-30 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                    <Image src={character.cards[0].images[0].url} alt="" fill className="object-cover blur-sm" unoptimized />
+                    <Image src={character.cards[0].images[0].url} alt="" fill className="object-cover blur-sm" />
                   </div>
                 )}
                 

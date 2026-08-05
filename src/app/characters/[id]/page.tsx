@@ -90,7 +90,7 @@ export default async function CharacterDetailsPage(props: { params: Promise<{ id
           {mostExpensiveCard ? (
             <div className="z-10 relative group">
               <Link href={`/cards/${mostExpensiveCard.id}`} className="block relative w-64 md:w-80 aspect-[63/88] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(255,255,255,0.1)] transition-transform duration-700 hover:scale-105 hover:-rotate-2">
-                <Image src={mostExpensiveCard.images[0]?.url} alt={mostExpensiveCard.name} fill className="object-cover" unoptimized priority />
+                <Image src={mostExpensiveCard.images[0]?.url} alt={mostExpensiveCard.name} fill className="object-cover" priority />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
                   <p className="text-foreground font-medium truncate">{mostExpensiveCard.name}</p>
                   <p className="text-green-400 font-mono text-xs font-bold">Highest Valued Variant (${maxPrice.toFixed(2)})</p>
@@ -101,7 +101,7 @@ export default async function CharacterDetailsPage(props: { params: Promise<{ id
             character.cards[0]?.images[0]?.url && (
               <div className="z-10 relative group">
                 <Link href={`/cards/${character.cards[0].id}`} className="block relative w-64 md:w-80 aspect-[63/88] rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(255,255,255,0.1)] transition-transform duration-700 hover:scale-105 hover:-rotate-2">
-                  <Image src={character.cards[0].images[0].url} alt={character.cards[0].name} fill className="object-cover" unoptimized priority />
+                  <Image src={character.cards[0].images[0].url} alt={character.cards[0].name} fill className="object-cover" priority />
                 </Link>
               </div>
             )
@@ -129,7 +129,7 @@ export default async function CharacterDetailsPage(props: { params: Promise<{ id
               {character.cards.map((card) => (
                 <Link key={card.id} href={`/cards/${card.id}`} className="group relative block w-full aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 border border-foreground/10">
                   {card.images[0]?.url ? (
-                    <Image src={card.images[0].url} alt={card.name} fill className="object-cover" unoptimized />
+                    <Image src={card.images[0].url} alt={card.name} fill className="object-cover" />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
                       <Layers className="text-foreground/20 mb-2" size={24} />

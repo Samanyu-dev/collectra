@@ -20,7 +20,7 @@ function CardRow({ card, trailing }: { card: CatalogCard; trailing: React.ReactN
     >
       <div className="w-9 h-12 rounded-md overflow-hidden bg-foreground/10 shrink-0 relative">
         {card.imageUrl ? (
-          <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" unoptimized />
+          <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" />
         ) : null}
       </div>
 

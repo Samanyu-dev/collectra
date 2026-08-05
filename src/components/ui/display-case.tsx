@@ -43,7 +43,7 @@ export function DisplayCase({ instances }: DisplayCaseProps) {
                 style={{ transformStyle: 'preserve-3d' }}
               >
                 {hqImage ? (
-                  <Image src={hqImage} alt={card.name} fill className="object-cover" unoptimized />
+                  <Image src={hqImage} alt={card.name} fill className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-foreground/5 flex items-center justify-center p-4 text-center">
                     <span className="text-foreground/40 text-xs font-mono">{card.name}</span>
@@ -145,7 +145,7 @@ function InstanceModal({ instance, onClose }: { instance: any, onClose: () => vo
         <div className="w-full md:w-2/5 p-8 md:p-12 bg-background/40 flex items-center justify-center relative overflow-hidden">
           <div className="relative w-full max-w-[300px] aspect-[63/88] rounded-xl shadow-2xl">
             {hqImage ? (
-              <Image src={hqImage} alt={card.name} fill className="object-cover" unoptimized />
+              <Image src={hqImage} alt={card.name} fill className="object-cover" />
             ) : null}
             {instance.isGraded && (
               <div className="absolute top-0 left-0 right-0 h-8 bg-white/95 flex items-center justify-between px-4 shadow-sm border-b border-black/10">

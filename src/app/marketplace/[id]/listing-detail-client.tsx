@@ -91,7 +91,7 @@ export function ListingDetailClient({ listing, trustFacts }: { listing: ListingD
         <div className="space-y-3">
           <div className="relative aspect-[63/88] rounded-2xl overflow-hidden bg-foreground/5 border border-foreground/10">
             {listing.photos[activePhoto] ? (
-              <Image src={listing.photos[activePhoto]} alt={listing.cardName} fill className="object-cover" unoptimized />
+              <Image src={listing.photos[activePhoto]} alt={listing.cardName} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-foreground/30">{listing.cardName}</div>
             )}
@@ -104,7 +104,7 @@ export function ListingDetailClient({ listing, trustFacts }: { listing: ListingD
                   onClick={() => setActivePhoto(i)}
                   className={`relative w-16 h-20 rounded-lg overflow-hidden border-2 shrink-0 ${i === activePhoto ? "border-primary" : "border-transparent opacity-60"}`}
                 >
-                  <Image src={url} alt="" fill className="object-cover" unoptimized />
+                  <Image src={url} alt="" fill className="object-cover" />
                 </button>
               ))}
             </div>

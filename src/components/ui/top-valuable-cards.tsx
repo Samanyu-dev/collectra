@@ -49,7 +49,7 @@ export function TopValuableCardsSection({ cards }: { cards: CatalogCard[] }) {
               className="group relative rounded-2xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/20 transition-colors overflow-hidden"
             >
               <div className="aspect-[63/88] relative bg-foreground/10">
-                {card.imageUrl && <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" unoptimized />}
+                {card.imageUrl && <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" />}
                 <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-background/80 backdrop-blur flex items-center justify-center text-[11px] font-mono font-bold text-foreground/70">
                   {i + 1}
                 </span>

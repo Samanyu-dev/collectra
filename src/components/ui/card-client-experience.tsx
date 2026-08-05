@@ -262,7 +262,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
             ) : crestImage ? (
               <div className="relative w-64 md:w-80 aspect-[63/88] rounded-2xl overflow-hidden bg-gradient-to-b from-foreground/10 to-background/40 border border-foreground/10 shadow-2xl flex flex-col items-center justify-center gap-4 p-8">
                 <div className="relative w-2/3 aspect-square drop-shadow-2xl">
-                  <Image src={crestImage} alt={card.name} fill className="object-contain" unoptimized />
+                  <Image src={crestImage} alt={card.name} fill className="object-contain" />
                 </div>
                 <span className="text-foreground/40 text-xs font-mono uppercase tracking-widest text-center">{card.name}</span>
               </div>
@@ -565,7 +565,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
                     <Link key={prod.id} href={`/products/${prod.id}`} className="group p-4 rounded-xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors flex items-center gap-4">
                       <div className="w-12 h-12 bg-background/40 rounded flex items-center justify-center relative overflow-hidden">
                         {prod.images?.[0]?.url ? (
-                          <Image src={prod.images[0].url} alt={prod.name} fill className="object-cover" unoptimized />
+                          <Image src={prod.images[0].url} alt={prod.name} fill className="object-cover" />
                         ) : (
                           <PackageOpen size={20} className="text-foreground/20" />
                         )}
@@ -598,7 +598,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
                     >
                       <div className="relative w-28 aspect-[63/88] rounded-lg overflow-hidden bg-foreground/5 border border-foreground/10 group-hover:border-primary/40 transition-colors">
                         {thumb ? (
-                          <Image src={thumb.url} alt={rc.name} fill className="object-cover" loading="lazy" unoptimized />
+                          <Image src={thumb.url} alt={rc.name} fill className="object-cover" loading="lazy" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center p-2 text-center">
                             <span className="text-[10px] text-foreground/30">{rc.name}</span>

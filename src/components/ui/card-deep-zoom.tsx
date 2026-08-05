@@ -74,9 +74,9 @@ export function CardDeepZoom({ imageUrl, name }: CardDeepZoomProps) {
             src={imageUrl} 
             alt={name} 
             fill 
-            className="object-cover" 
+            className="object-cover"
             priority
-            unoptimized
+            sizes="(max-width: 640px) 256px, (max-width: 768px) 320px, 384px"
           />
           {/* Subtle Glare Effect */}
           <motion.div 
@@ -138,9 +138,9 @@ export function CardDeepZoom({ imageUrl, name }: CardDeepZoomProps) {
                   src={imageUrl} 
                   alt={name} 
                   fill 
-                  className="object-contain" 
+                  className="object-contain"
                   quality={100}
-                  unoptimized
+                  sizes="100vw"
                 />
               </motion.div>
             </div>

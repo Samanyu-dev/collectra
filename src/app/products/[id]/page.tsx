@@ -121,7 +121,7 @@ export default async function ProductDetailsPage(props: { params: Promise<{ id: 
           <div className="w-full md:w-1/3 flex-shrink-0">
             <div className="relative w-full aspect-[4/3] bg-foreground/5 rounded-2xl border border-foreground/10 flex items-center justify-center p-8 shadow-2xl">
               {hqImage ? (
-                <Image src={hqImage} alt={product.name} fill className="object-contain p-8" unoptimized priority />
+                <Image src={hqImage} alt={product.name} fill className="object-contain p-8" priority />
               ) : (
                 <PackageOpen size={64} className="text-foreground/20" />
               )}
@@ -130,7 +130,7 @@ export default async function ProductDetailsPage(props: { params: Promise<{ id: 
               <div className="flex gap-4 mt-4 overflow-x-auto">
                 {product.images.map((img, idx) => (
                   <div key={`${img.url}-${idx}`} className="w-20 h-20 bg-foreground/5 rounded-xl border border-foreground/10 relative overflow-hidden">
-                    <Image src={img.url} alt="Thumbnail" fill className="object-cover" unoptimized />
+                    <Image src={img.url} alt="Thumbnail" fill className="object-cover" />
                   </div>
                 ))}
               </div>
@@ -218,7 +218,7 @@ export default async function ProductDetailsPage(props: { params: Promise<{ id: 
                     <Link href={`/cards/${comp.guaranteedVariant.cardId}`} className="block w-full max-w-sm bg-foreground/5 hover:bg-foreground/10 transition-colors border border-foreground/10 rounded-xl p-4 flex items-center gap-4 cursor-pointer">
                       <div className="w-12 h-16 bg-foreground/10 rounded shrink-0 relative overflow-hidden">
                         {comp.guaranteedVariant.card.images?.[0]?.url && (
-                          <Image src={comp.guaranteedVariant.card.images[0].url} alt={comp.guaranteedVariant.card.name} fill className="object-cover" unoptimized />
+                          <Image src={comp.guaranteedVariant.card.images[0].url} alt={comp.guaranteedVariant.card.name} fill className="object-cover" />
                         )}
                       </div>
                       <div>
@@ -238,7 +238,7 @@ export default async function ProductDetailsPage(props: { params: Promise<{ id: 
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-14 bg-foreground/10 rounded relative overflow-hidden">
                                 {pull.variant.card.images?.[0]?.url && (
-                                  <Image src={pull.variant.card.images[0].url} alt={pull.variant.card.name} fill className="object-cover" unoptimized />
+                                  <Image src={pull.variant.card.images[0].url} alt={pull.variant.card.name} fill className="object-cover" />
                                 )}
                               </div>
                               <div>

@@ -79,7 +79,7 @@ export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; to
                     <Link href={`/cards/${item.cardId}`}>
                       <div className="relative group cursor-pointer w-[280px] aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-foreground/10 bg-foreground/5">
                         {image ? (
-                          <Image src={image.url} alt={item.name} fill className="object-cover" unoptimized />
+                          <Image src={image.url} alt={item.name} fill className="object-cover" sizes="280px" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-foreground/30 text-sm p-4 text-center">{item.name}</div>
                         )}
