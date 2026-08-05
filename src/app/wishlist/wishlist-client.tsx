@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useTransition } from 'react';
 import { Heart, Bell } from 'lucide-react';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 import { toggleWishlist } from '@/lib/actions/wishlist';
 import { PriceTag, type PriceTagData } from '@/components/ui/price-tag';
 
@@ -58,8 +59,7 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
             {items.map((item, i) => {
-              const image = item.images.find((img) => img.type === 'THUMBNAIL')
-                || item.images.find((img) => img.type === 'OFFICIAL_ARTWORK')
+              const image = pickPrimaryImage(item.images)
                 || item.images.find((img) => img.type === 'TEAM_CREST');
 
               return (

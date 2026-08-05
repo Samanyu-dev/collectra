@@ -1,6 +1,6 @@
 # Collectra Roadmap
 
-Last updated: 2026-07-22
+Last updated: 2026-08-04
 
 This is the living, phase-by-phase plan for Collectra — what's built, what's next, and roughly why, in that order. Phases are sequential by design decision (see "Sequencing rationale" at the end), not calendar time.
 
@@ -74,7 +74,19 @@ Closed 2026-07-22, after a resume session that verified every previously-claimed
 - **Deployed and verified live**: real signup/login, ownership isolation, cron authentication, and the admin dashboard all confirmed against production, not just locally.
 - **Phase 5.1 (incremental/resumable sync), also shipped**: production verification itself found that one cron invocation can't finish the ~174-set catalog inside Vercel's function time limit. Fixed with a persisted resume cursor (keyed on each set's own stable id, not array position) and a time-boxed loop — each daily invocation now picks up where the last one stopped, wrapping to the start once a full lap completes. Verified with a real three-run test against the live database proving actual resume, not just design intent.
 
-**Deliberately not done**: further throughput optimization (the 1.9x batching win plus incremental sync is the more durable fix than squeezing more speed out of one invocation), Tier 1 (paid) sources, MTG/Scryfall pricing, realized gains, wishlist notification delivery, OAuth/magic-link. Each is a named, scoped follow-up in the ADR, not a silently dropped requirement.
+**Deliberately not done**: further throughput optimization (the 1.9x batching win plus incremental sync is the more durable fix than squeezing more speed out of one invocation), MTG/Scryfall pricing, realized gains, wishlist notification delivery, OAuth/magic-link. Each is a named, scoped follow-up in the ADR, not a silently dropped requirement.
+
+## Phase 5.2 — eBay Tier 1 price + image adapter ✅ (implemented, verified against real production data)
+
+**Architecture**: `docs/adr/003-price-engine-architecture.md` §19. Correcting this file's own prior claim that Tier 1 was deferred — a real eBay Browse API integration (Production credentials) is built and running.
+
+Real, credentialed (not scraped) source: eBay Browse API `item_summary/search`, observing **active listings (asks)**, never sold comps — eBay's separately-gated Marketplace Insights API would be needed for that and isn't integrated. `src/ingestion/ebay/`: OAuth client-credentials auth, three anti-contamination filters found and fixed against real bad matches (bulk/lot listings, graded slabs, wrong-number/wrong-subline title matches), and a resumable, **paginated** full-catalog sweep (`sweep-catalog.ts`) — the pagination strategy the task required, decided after confirming the real bottleneck is Vercel's 300s function cap, not eBay's own rate limit: a `{tier}:{cardId}` cursor, a tiered priority order (the user's own owned collection first, then four named franchise groups, then everything else), and a bounded 1,000-card window per invocation that tops up across tier boundaries and wraps. Deployed as a daily `CRON_SECRET`-gated Vercel Cron (`/api/cron/ebay-price-sync`).
+
+Best-matched listing photos are downloaded and **re-hosted in Supabase Storage** (`EBAY_LISTING_PHOTO` usage) rather than left as bare hotlinks, since eBay listings expire far faster than the official-artwork hotlinks every other source uses — a deliberate, user-approved departure from this codebase's hotlink-first convention. `pick-primary-image.ts` now centralizes cross-source image display priority (`OFFICIAL_ARTWORK > THUMBNAIL > EBAY_LISTING_PHOTO > LISTING_PHOTO`) so every page agrees.
+
+**Verified against real production data, no mocks** (2026-08-04): 2,493 clean `PriceObservation` rows across 706 variants, 706 real re-hosted images, a real contamination bug found mid-sweep and fixed (plus a one-time purge of the specific pre-fix rows, not a blanket delete), 21 new unit tests covering the filter/matching logic and the tiered resume-cursor guarantee.
+
+**Deliberately not built**: the listing-liveness recheck/delete job eBay's License Agreement §8.1(b)(1) technically calls for (user accepted this as a known risk — see ADR §19), telemetry, and running the sweep's long-lived `--unbounded` mode (needed to lap the full ~32,107-card catalog in days rather than months under the daily cron alone).
 
 ## Phase 6 — Scanner ✅ (implemented, validated end-to-end against real services)
 

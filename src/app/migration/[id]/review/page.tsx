@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireUser } from '@/lib/auth/session';
 import { getImagesForEntities } from '@/lib/media/resolve';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 import { MigrationReviewClient } from './migration-review-client';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ export default async function MigrationReview(props: { params: Promise<{ id: str
       candidates: candidates.map((c) => {
         const variant = variants.find((v) => v.id === c.variantId);
         const images = variant ? cardImages.get(variant.cardId) ?? [] : [];
-        const image = images.find((i) => i.type === 'OFFICIAL_ARTWORK') || images.find((i) => i.type === 'THUMBNAIL');
+        const image = pickPrimaryImage(images);
         let name = variant?.card.name ?? 'Unknown card';
         if (variant?.printing?.name || variant?.parallel?.name) {
           name += ` (${[variant.printing?.name, variant.parallel?.name].filter(Boolean).join(' ')})`;

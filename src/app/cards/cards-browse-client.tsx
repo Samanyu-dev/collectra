@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Search, Check } from 'lucide-react';
 import { PriceTag, type PriceTagData } from '@/components/ui/price-tag';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 
 interface CardItem {
   id: string;
@@ -65,8 +66,7 @@ export function CardsBrowseClient({
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {items.map((card, i) => {
-          const image = card.images.find((img) => img.type === 'THUMBNAIL')
-            || card.images.find((img) => img.type === 'OFFICIAL_ARTWORK')
+          const image = pickPrimaryImage(card.images)
             || card.images.find((img) => img.type === 'TEAM_CREST');
 
           return (

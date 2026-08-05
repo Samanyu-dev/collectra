@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Search, PackageOpen, ArrowRight } from "lucide-react";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 
 interface SetResult {
   id: string;
@@ -123,7 +124,7 @@ export function DashboardSearch() {
                 </Link>
               ))}
               {results.cards.map((card) => {
-                const image = card.images?.find((img) => img.type === "THUMBNAIL") || card.images?.[0];
+                const image = pickPrimaryImage(card.images) || card.images?.[0];
                 return (
                   <Link
                     key={card.id}

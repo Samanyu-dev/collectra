@@ -10,6 +10,7 @@ import { QuantityControl } from './quantity-control';
 import { SmartSelect } from './smart-select';
 import { Sparkline } from './sparkline';
 import { toPriceDisplay } from '@/lib/pricing/display';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 import type { RarityTier } from '@/lib/collection/classification';
 
 type CurrentPrice = {
@@ -187,8 +188,7 @@ export function CardGrid({
             .sort((a, b) => b.currentPrice!.marketPriceUsd! - a.currentPrice!.marketPriceUsd!)[0]?.currentPrice ?? null;
 
           // Find image — prefer real card art, fall back to team crest, then blank
-          const realArt = card.images.find(img => img.type === 'THUMBNAIL')?.url
-            || card.images.find(img => img.type === 'OFFICIAL_ARTWORK')?.url;
+          const realArt = pickPrimaryImage(card.images)?.url;
           const crestArt = card.images.find(img => img.type === 'TEAM_CREST')?.url;
           const thumbImage = realArt || crestArt;
           const isCrestFallback = !realArt && !!crestArt;

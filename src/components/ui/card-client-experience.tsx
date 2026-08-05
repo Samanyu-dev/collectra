@@ -13,6 +13,7 @@ import { toggleWishlist } from '@/lib/actions/wishlist';
 import { PriceTag } from './price-tag';
 import { ProgressBar } from './collectra-ui';
 import { QuantityControl } from './quantity-control';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 import { getVariantCardType, getVariantRarityLabel } from '@/lib/collection/classification';
 import { toPriceDisplay } from '@/lib/pricing/display';
 import { PriceHistoryChart } from './price-history-chart';
@@ -133,9 +134,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
     });
   }
 
-  const hqImage = card.images?.find((i: any) => i.type === 'OFFICIAL_ARTWORK')?.url
-               || card.images?.find((i: any) => i.type === 'THUMBNAIL')?.url
-               || "";
+  const hqImage = pickPrimaryImage(card.images)?.url || "";
   const crestImage = card.images?.find((i: any) => i.type === 'TEAM_CREST')?.url || "";
 
   const activeVariant = card.variants.find((v: any) => v.id === activeVariantId) || card.variants[0];
@@ -590,7 +589,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
               </h3>
               <div className="flex gap-4 overflow-x-auto scrollbar-none pb-2 -mx-1 px-1">
                 {relatedCards.map((rc: RelatedCard) => {
-                  const thumb = rc.images.find((i) => i.type === 'THUMBNAIL') || rc.images.find((i) => i.type === 'OFFICIAL_ARTWORK');
+                  const thumb = pickPrimaryImage(rc.images);
                   return (
                     <Link
                       key={rc.id}

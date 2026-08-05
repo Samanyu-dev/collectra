@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/media-process",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/ebay-price-sync",
+      "schedule": "30 6 * * *"
     }
   ]
 }

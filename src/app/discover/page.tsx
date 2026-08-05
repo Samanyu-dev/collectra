@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Sparkles, TrendingUp, Flame, Brush, Users, Image as ImageIcon } from "lucide-react";
 import { getImagesForEntity, getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Greeting } from "./greeting";
 import { FeaturedCard } from "@/components/ui/featured-card";
@@ -18,7 +19,7 @@ async function fetchMostValuableCard() {
   if (!topPrice?.variant) return null;
 
   const images = await getImagesForEntity("Card", topPrice.variant.card.id);
-  const image = images.find((i) => i.type === "OFFICIAL_ARTWORK") || images.find((i) => i.type === "THUMBNAIL");
+  const image = pickPrimaryImage(images);
   if (!image) return null;
 
   return {

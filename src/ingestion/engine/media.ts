@@ -53,9 +53,24 @@ export async function attachHotlinkImage(opts: {
   usage: string;
   sourceIdentifier: string; // e.g. "pokemontcg-api", "kaggle:owner/slug"
   sourceKind?: string; // OFFICIAL_API (default), KAGGLE, HUGGINGFACE, GITHUB, COMMUNITY
-}): Promise<void> {
+  // When true, a resolved image that DIFFERS from what's currently attached
+  // REPLACES it (old MediaAttachment removed, orphaned Media row cleaned up)
+  // instead of silently accumulating alongside it. Off by default — every
+  // other caller (Pokemon/MTG/Yu-Gi-Oh official artwork) wants the original
+  // idempotent-skip behavior, since official artwork doesn't change and
+  // re-fetching/replacing it on every re-run would be pure churn. Added
+  // specifically for eBay listing photos: match-quality logic there can
+  // legitimately improve between sweep passes (see the query-matching fix
+  // earlier this session), and without this a Card that got a WRONG image
+  // attached during a buggy window keeps showing it forever — the intended
+  // "usage" scoping combined with an unscoped mediaId check meant a
+  // different image for the same entity+usage created a SECOND attachment
+  // row rather than either replacing or truly skipping, and the original
+  // (wrong) one kept winning display selection via stable-sort tie order.
+  replaceExisting?: boolean;
+}): Promise<{ mediaId: string; replaced: boolean } | null> {
   const { url, entityType, entityId, usage } = opts;
-  if (!url) return;
+  if (!url) return null;
 
   const kind = opts.sourceKind || "OFFICIAL_API";
   const defaults = KIND_DEFAULTS[kind] || KIND_DEFAULTS.OFFICIAL_API;
@@ -89,6 +104,35 @@ export async function attachHotlinkImage(opts: {
     media = existing;
   }
 
+  if (opts.replaceExisting) {
+    // All current attachments for this entity+usage, not just ones pointing
+    // at THIS media — this is the difference from the default path below,
+    // which only ever checked for a duplicate of the SAME image.
+    const currentAttachments = await prisma.mediaAttachment.findMany({
+      where: { entityType, entityId, usage },
+    });
+    const stale = currentAttachments.filter((a) => a.mediaId !== media.id);
+    let replaced = false;
+    if (stale.length > 0) {
+      await prisma.mediaAttachment.deleteMany({ where: { id: { in: stale.map((a) => a.id) } } });
+      replaced = true;
+      // Best-effort cleanup of now-orphaned stale Media rows — never delete
+      // one still referenced by another attachment or a user's scan-match.
+      for (const staleMediaId of new Set(stale.map((a) => a.mediaId))) {
+        const stillReferenced = await prisma.mediaAttachment.findFirst({ where: { mediaId: staleMediaId } });
+        const scanReferenced = await prisma.instance.findFirst({ where: { scanMediaId: staleMediaId } });
+        if (!stillReferenced && !scanReferenced) {
+          await prisma.media.delete({ where: { id: staleMediaId } }).catch(() => {});
+        }
+      }
+    }
+    const alreadyCorrect = currentAttachments.some((a) => a.mediaId === media.id);
+    if (!alreadyCorrect) {
+      await prisma.mediaAttachment.create({ data: { mediaId: media.id, entityType, entityId, usage } });
+    }
+    return { mediaId: media.id, replaced };
+  }
+
   const existingAttachment = await prisma.mediaAttachment.findFirst({
     where: { mediaId: media.id, entityType, entityId, usage },
   });
@@ -97,4 +141,6 @@ export async function attachHotlinkImage(opts: {
       data: { mediaId: media.id, entityType, entityId, usage },
     });
   }
+
+  return { mediaId: media.id, replaced: false };
 }

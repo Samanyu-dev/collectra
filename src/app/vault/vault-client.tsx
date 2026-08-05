@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Shield, Building, ChevronRight, Star } from 'lucide-react';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 
 interface VaultItem {
   instanceId: string;
@@ -59,8 +60,7 @@ export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; to
           ) : (
             items.map((item, i) => {
               const isEven = i % 2 === 0;
-              const image = item.images.find((img) => img.type === 'OFFICIAL_ARTWORK')
-                || item.images.find((img) => img.type === 'THUMBNAIL')
+              const image = pickPrimaryImage(item.images)
                 || item.images.find((img) => img.type === 'TEAM_CREST');
 
               return (

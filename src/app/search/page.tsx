@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Search as SearchIcon, PackageOpen, Clock, X, Compass, Layers } from 'lucide-react';
 import { ListRowsSkeleton } from '@/components/ui/skeleton';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 
 interface SearchResults {
   cards: any[];
@@ -232,7 +233,7 @@ export default function SearchPage() {
                 {results.cards.map((card: any) => {
                   const idx = nextRowIndex();
                   const active = activeIndex === idx;
-                  const image = card.images?.find((img: any) => img.type === 'THUMBNAIL') || card.images?.find((img: any) => img.type === 'OFFICIAL_ARTWORK');
+                  const image = pickPrimaryImage(card.images);
                   return (
                     <motion.div key={card.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
                       <Link
