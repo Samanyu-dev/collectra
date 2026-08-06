@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { SharpImageProcessor } from "../../../packages/media/processor/ImageProcessor";
-import { SupabaseStorageAdapter } from "../../../packages/media";
+import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter } from "../../../packages/media";
 
 const processor = new SharpImageProcessor();
 const CATALOG_BUCKET = "catalog-media";
@@ -51,9 +51,20 @@ export async function findDuplicateByPerceptualHash(hash: string, excludeId?: st
   return null;
 }
 
-function storageAdapter(): SupabaseStorageAdapter {
+// Supabase Storage is at its plan quota (see project memory) — new catalog
+// media goes to Vercel Blob instead going forward. Media already re-hosted
+// on Supabase keeps its existing storageKey/URL untouched; this only
+// decides where the *next* upload lands.
+function storageAdapter(): StorageAdapter {
+  if (process.env.BLOB_READ_WRITE_TOKEN && process.env.BLOB_PUBLIC_BASE_URL) {
+    return new VercelBlobAdapter({
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      baseUrl: process.env.BLOB_PUBLIC_BASE_URL,
+      prefix: CATALOG_BUCKET,
+    });
+  }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY required to re-host processed media");
+    throw new Error("BLOB_READ_WRITE_TOKEN/BLOB_PUBLIC_BASE_URL or SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY required to re-host processed media");
   }
   return new SupabaseStorageAdapter({
     url: process.env.SUPABASE_URL,
@@ -133,7 +144,7 @@ export async function processMediaRow(mediaId: string): Promise<ProcessMediaResu
     await prisma.media.update({
       where: { id: media.id },
       data: {
-        provider: "supabase",
+        provider: adapter.provider,
         bucket: CATALOG_BUCKET,
         storageKey: originalKey,
         width: metadata.width,

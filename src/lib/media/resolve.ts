@@ -1,5 +1,5 @@
 import { PrismaClient, Media } from "@prisma/client";
-import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter } from "../../../packages/media";
+import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter } from "../../../packages/media";
 
 const prisma = new PrismaClient();
 
@@ -62,6 +62,14 @@ export async function getAllMedia(entityType: string, entityId: string, usage?: 
 }
 
 function storageAdapterFor(media: Media): StorageAdapter | null {
+  if (media.provider === "vercel-blob") {
+    if (!process.env.BLOB_READ_WRITE_TOKEN || !process.env.BLOB_PUBLIC_BASE_URL) return null;
+    return new VercelBlobAdapter({
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      baseUrl: process.env.BLOB_PUBLIC_BASE_URL,
+      prefix: media.bucket,
+    });
+  }
   if (media.provider === "supabase") {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
     return new SupabaseStorageAdapter({

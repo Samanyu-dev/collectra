@@ -4,6 +4,15 @@ Human-readable record of what shipped and why. See `docs/roadmap.md` for the pha
 
 ## Unreleased
 
+### Phase 5.3 — Storage provider migration (Supabase → Vercel Blob, public media)
+
+Supabase Storage hit its plan's Fair Use quota (1.424GB / 1.0GB), driven mainly by the eBay sweep's continuous image re-hosting. `docs/adr/007-storage-provider-migration.md` has the full record, including why a second Supabase account and Firebase Storage were both evaluated and rejected. Landed on Vercel Blob — no new vendor, no card required, comparable free tier.
+
+- New catalog images and marketplace listing photos now write to a public Vercel Blob store; existing Supabase-hosted media is untouched and keeps working (`Media.provider` is checked per-row on every read, not assumed).
+- Private uploads (scanner photos, migration CSVs) stay on Supabase for now — connecting a second, private Blob store needs a dashboard step the CLI doesn't expose, and current volume there doesn't need it yet.
+- Two real bugs found and fixed via live verification, not left as gaps: `next.config.ts` was missing the new image host (`/marketplace` was throwing a client-side error); the sweep's long-lived wrapper shell doesn't reload `.env` on its own, so a credential change after the loop started was invisible until the wrapper itself restarted — fixed by sourcing `.env` before every sweep window.
+- Also seeded this session: ~90 previously-missing Topps Match Attax 2025/26 and Match Attax Extra insert subsets (Chrome Award Winner, Chrome X, Festive, Royal Elite, Genuine Autograph, and others), now correctly linked via the existing `Insert` model rather than left as untracked print-run descriptors.
+
 ### Phase 5.1 — Incremental catalog sync
 
 Found by production verification of v0.5.0-beta, not left as a known gap: a single cron invocation can't finish the ~174-set Pokémon catalog inside Vercel's function time limit (a live run got through 14 sets before progress stopped). Fixed, not just documented:

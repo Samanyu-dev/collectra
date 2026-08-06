@@ -30,3 +30,5 @@ We are introducing Phase 15 - Pillar 2 (Media Engine) and formalizing our extern
 ## Consequences
 - **Positive:** Massive bandwidth savings via deduplication. UI performance skyrockets using blurhashes and AVIF. The Scanner (future phase) now has a structured foundation for high-res cropping. We avoid fragile scraping code.
 - **Negative:** Schema complexity increases. The local database `Image` table must be dropped/migrated to `Media`, requiring a full data resync for local dev environments. Monorepo tooling overhead is introduced.
+
+**2026-08-06 update**: the `StorageAdapter` abstraction proved out — a full storage-provider migration (Supabase → Vercel Blob for public media, ADR 007) required zero interface changes, only a new adapter implementation and a per-row provider check on read. `packages/media` now ships `LocalStorageAdapter`, `SupabaseStorageAdapter`, and `VercelBlobAdapter` behind the same interface.

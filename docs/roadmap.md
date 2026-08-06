@@ -1,6 +1,6 @@
 # Collectra Roadmap
 
-Last updated: 2026-08-04
+Last updated: 2026-08-06
 
 This is the living, phase-by-phase plan for Collectra — what's built, what's next, and roughly why, in that order. Phases are sequential by design decision (see "Sequencing rationale" at the end), not calendar time.
 
@@ -87,6 +87,16 @@ Best-matched listing photos are downloaded and **re-hosted in Supabase Storage**
 **Verified against real production data, no mocks** (2026-08-04): 2,493 clean `PriceObservation` rows across 706 variants, 706 real re-hosted images, a real contamination bug found mid-sweep and fixed (plus a one-time purge of the specific pre-fix rows, not a blanket delete), 21 new unit tests covering the filter/matching logic and the tiered resume-cursor guarantee.
 
 **Deliberately not built**: the listing-liveness recheck/delete job eBay's License Agreement §8.1(b)(1) technically calls for (user accepted this as a known risk — see ADR §19), telemetry, and running the sweep's long-lived `--unbounded` mode (needed to lap the full ~32,107-card catalog in days rather than months under the daily cron alone).
+
+## Phase 5.3 — Storage provider migration (Supabase → Vercel Blob, public media) ✅
+
+**Architecture**: `docs/adr/007-storage-provider-migration.md`. Supabase Storage hit its plan's Fair Use quota (1.424GB / 1.0GB limit), driven mainly by the eBay sweep's continuous image re-hosting. Evaluated and rejected: a second Supabase account (fair-use evasion, doesn't scale), Firebase Storage (now requires the Blaze plan — a card on file — just to provision a bucket at all, even though usage inside the free tier isn't billed).
+
+Landed on Vercel Blob: no new vendor, no card required on the Hobby plan, comparable free tier (5GB storage). `VercelBlobAdapter` implements the existing `StorageAdapter` interface from ADR 001 with no interface changes — catalog images and marketplace listing photos now write to a new public Blob store; existing Supabase-hosted media is untouched and keeps resolving correctly (`Media.provider` is read per-row, not assumed from today's default). Private uploads (scanner, migration) stay on Supabase for now — a private Blob store was created but not connected (needs a dashboard step the CLI doesn't expose); revisit only if Supabase's remaining quota becomes a bottleneck there too. Explicitly re-confirmed with the user: storage-provider access level (public/private) is not an authorization system — per-user ownership checks remain entirely the app's own responsibility (JWT + `uploadedByUserId`), unchanged by this migration.
+
+Two real bugs found and fixed during rollout, not left as silent gaps: `next.config.ts` was missing the Blob image host (found via a live smoke test, `/marketplace` threw a client-side error); the sweep's long-lived wrapper shell doesn't auto-reload `.env` (tsx doesn't auto-load it either — the shell only had what was exported at its own launch), fixed by sourcing `.env` before every sweep window instead of only at process start.
+
+**Deliberately not done**: private-store connection (Appwrite chosen as the fallback vendor if Blob's quota is also exhausted, not yet integrated in any form); no migration/backfill of existing Supabase-hosted media to Blob (unnecessary — old rows keep working as-is).
 
 ## Phase 6 — Scanner ✅ (implemented, validated end-to-end against real services)
 

@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter } from "../../../packages/media";
 
+// Migration uploads are private — no Blob store is wired up for private
+// uploads yet (see scanner/storage.ts for why). Stays on Supabase.
 function storageAdapter(): StorageAdapter {
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return new SupabaseStorageAdapter({

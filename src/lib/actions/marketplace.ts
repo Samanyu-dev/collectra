@@ -71,7 +71,7 @@ export async function uploadListingPhoto(listingId: string, formData: FormData):
   if (!(file instanceof File) || file.size === 0) throw new Error("Please provide a photo");
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { key, url, checksum } = await storeListingPhoto(listingId, file.name, buffer, file.type || "image/jpeg");
+  const { key, url, checksum, provider } = await storeListingPhoto(listingId, file.name, buffer, file.type || "image/jpeg");
 
   const media = await prisma.media.upsert({
     where: { originalHash: checksum },
@@ -80,7 +80,7 @@ export async function uploadListingPhoto(listingId: string, formData: FormData):
       originalHash: checksum,
       storageKey: key,
       bucket: "marketplace-media",
-      provider: "supabase",
+      provider,
       status: "READY",
       source: "USER_UPLOAD",
       sourceType: "USER_UPLOAD",

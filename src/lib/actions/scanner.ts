@@ -25,7 +25,7 @@ export async function uploadScanPhoto(formData: FormData): Promise<{ mediaId: st
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { key, url, checksum } = await storeScanPhoto(user.id, file.name, buffer, file.type || "image/jpeg");
+  const { key, url, checksum, provider } = await storeScanPhoto(user.id, file.name, buffer, file.type || "image/jpeg");
 
   const media = await prisma.media.upsert({
     where: { originalHash: checksum },
@@ -34,7 +34,7 @@ export async function uploadScanPhoto(formData: FormData): Promise<{ mediaId: st
       originalHash: checksum,
       storageKey: key,
       bucket: "user-uploads",
-      provider: "supabase",
+      provider,
       status: "READY",
       source: "USER_UPLOAD",
       sourceType: "USER_UPLOAD",
@@ -110,7 +110,7 @@ export async function identifyScan(mediaId: string): Promise<IdentifyScanRespons
   let blocks;
   try {
     const provider = getOcrProvider(); // can throw OcrNotConfiguredError itself now (e.g. a misconfigured OCR_PROVIDER), not just extractText()
-    const imageBuffer = await getScanPhotoBuffer(media.storageKey);
+    const imageBuffer = await getScanPhotoBuffer(media.storageKey, media.provider);
     blocks = await provider.extractText(imageBuffer);
   } catch (e) {
     if (e instanceof OcrNotConfiguredError) return { ocrConfigured: false };
