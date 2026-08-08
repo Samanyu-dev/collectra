@@ -151,23 +151,36 @@ export function computeAggregate(
 const SOURCE_SELECT = { source: { select: { name: true, identifier: true, trustLevel: true } } } as const;
 
 /**
- * Persists every outlier-flag change as ONE SQL statement, regardless of how
- * many rows changed — the real fix for a retry storm found by timing the
- * first sync run: firing N individual concurrent update() calls (even via
- * Promise.all) was enough to exhaust the pooled connection and trigger
- * dozens of transient-error retries per set.
+ * Persists every outlier-flag change as ONE SQL statement per chunk, rather
+ * than N individual concurrent update() calls (even via Promise.all) — the
+ * real fix for a retry storm found by timing the first sync run, which was
+ * enough to exhaust the pooled connection and trigger dozens of
+ * transient-error retries per set.
+ *
+ * Chunked at CHUNK_SIZE changes/statement (3 bind params each — WHEN id,
+ * isOutlier value, and id again in the IN-list) because Postgres's wire
+ * protocol caps a single statement at 32767 bind parameters: a large
+ * historical backfill (e.g. seeding a set's full multi-month graded price
+ * history in one run) can legitimately produce tens of thousands of
+ * outlier-flag changes in one recompute call, which a single unchunked
+ * statement blew through (confirmed live: 47943 params from ~16k changes,
+ * P2035 "too many bind variables", during the MEGA Dream ex Pokémon seed).
  */
+const OUTLIER_FLAG_CHUNK_SIZE = 5000;
+
 async function bulkUpdateOutlierFlags(
   changes: Array<{ id: string; isOutlier: boolean }>,
   client: PricingPrismaClient
 ): Promise<void> {
-  if (changes.length === 0) return;
-  const cases = Prisma.join(
-    changes.map((c) => Prisma.sql`WHEN ${c.id} THEN ${c.isOutlier}`),
-    " "
-  );
-  const ids = Prisma.join(changes.map((c) => c.id));
-  await client.$executeRaw`UPDATE "PriceObservation" SET "isOutlier" = CASE id ${cases} END WHERE id IN (${ids})`;
+  for (let i = 0; i < changes.length; i += OUTLIER_FLAG_CHUNK_SIZE) {
+    const chunk = changes.slice(i, i + OUTLIER_FLAG_CHUNK_SIZE);
+    const cases = Prisma.join(
+      chunk.map((c) => Prisma.sql`WHEN ${c.id} THEN ${c.isOutlier}`),
+      " "
+    );
+    const ids = Prisma.join(chunk.map((c) => c.id));
+    await client.$executeRaw`UPDATE "PriceObservation" SET "isOutlier" = CASE id ${cases} END WHERE id IN (${ids})`;
+  }
 }
 
 /**

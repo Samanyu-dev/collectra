@@ -6,6 +6,7 @@ import { getFavoritedVariantIds, getOwnedVariantQuantities, getVaultedVariantIds
 import { getWishlistedCardIds } from "@/lib/actions/wishlist";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getPriceHistoryForVariants } from "@/lib/pricing/history";
+import { getCachedGradedPriceHistory } from "@/lib/pricing/graded-history";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
     ownedSetRows,
     marketplaceListings,
     priceHistoryMap,
+    gradedPriceHistoryEntries,
   ] = await Promise.all([
     getImagesForEntity("Card", card.id),
     getImagesForEntities("Product", Array.from(productIds)),
@@ -122,6 +124,11 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
     }),
     // Fetch price history for all variants (default 90d range)
     getPriceHistoryForVariants(variantIds, "90d"),
+    // Graded history: one query per variant via the cached helper (same
+    // fan-out shape getPriceHistoryForVariants uses above) — fine for a
+    // handful of variants on one card page, most of which return instantly
+    // empty since only a minority of variants have any graded observations.
+    Promise.all(variantIds.map(async (id) => [id, await getCachedGradedPriceHistory(id, "90d")] as const)),
   ]);
 
   const relatedCardImages = await getImagesForEntities("Card", relatedCardsRaw.map((c) => c.id));
@@ -163,6 +170,10 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
       scannerHistory: (userInstancesByVariant.get(v.id) ?? [])
         .filter((instance) => instance.scanMediaId)
         .map((instance) => ({ instanceId: instance.id, addedAt: instance.createdAt, condition: instance.condition })),
+      ownedInstances: (userInstancesByVariant.get(v.id) ?? []).map((instance) => ({
+        instanceId: instance.id,
+        serialNumber: instance.serialNumber,
+      })),
       activeListings: (userInstancesByVariant.get(v.id) ?? []).flatMap((instance) =>
         instance.listings.map((listing) => ({ id: listing.id, status: listing.status }))
       ),
@@ -196,5 +207,28 @@ export default async function CardDetailsPage(props: { params: Promise<{ id: str
     ])
   );
 
-  return <CardClientExperience card={cardWithImages} topVariantId={topVariant?.id || card.variants[0]?.id} relatedCards={relatedCards} priceHistoryByVariant={priceHistoryJson} />;
+  // Serialize graded price history to JSON for the client component, same as priceHistoryJson above.
+  const gradedPriceHistoryJson = Object.fromEntries(
+    gradedPriceHistoryEntries.map(([id, result]) => [
+      id,
+      {
+        ...result,
+        lastUpdated: result.lastUpdated ? new Date(result.lastUpdated).toISOString() : null,
+        series: result.series.map((s) => ({
+          ...s,
+          points: s.points, // already ISO date strings — see GradedPricePoint
+        })),
+      },
+    ])
+  );
+
+  return (
+    <CardClientExperience
+      card={cardWithImages}
+      topVariantId={topVariant?.id || card.variants[0]?.id}
+      relatedCards={relatedCards}
+      priceHistoryByVariant={priceHistoryJson}
+      gradedPriceHistoryByVariant={gradedPriceHistoryJson}
+    />
+  );
 }
