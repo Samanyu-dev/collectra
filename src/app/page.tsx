@@ -15,6 +15,7 @@ import { FranchiseBreakdownSection } from '@/components/ui/franchise-breakdown';
 import { CollectionAllocation } from '@/components/ui/collection-allocation';
 import { CollectionHealthBreakdown } from '@/components/ui/collection-health-breakdown';
 import { CollectionGapsSection } from '@/components/ui/collection-gaps';
+import { SetValueBreakdownSection } from '@/components/ui/set-value-breakdown';
 import { DashboardSearch } from '@/components/ui/dashboard-search';
 import { MostVolatileSection } from '@/components/ui/most-volatile';
 
@@ -54,6 +55,7 @@ async function IntelligenceFeed() {
       portfolioChangeToday,
       franchiseBreakdown,
       collectionGaps,
+      setValueBreakdown,
       mostVolatile,
       groupedActivity,
       wishlistCount,
@@ -302,6 +304,7 @@ async function IntelligenceFeed() {
         <MarketMoversSection gainers={gainers} losers={losers} recentlyPriced={recentlyPriced} />
         <div className="space-y-6">
           <FranchiseBreakdownSection breakdown={franchiseBreakdown} />
+          <SetValueBreakdownSection breakdown={setValueBreakdown} />
           <CollectionAllocation breakdown={franchiseBreakdown} />
         </div>
       </div>

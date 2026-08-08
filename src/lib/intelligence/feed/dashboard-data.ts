@@ -33,6 +33,18 @@ export interface CollectionGapEntry {
   remaining: number;
 }
 
+// Per-Set $ value, across every franchise (F1, football, Pokémon, ...) — the
+// franchiseBreakdown above already sums by franchise; this is the same
+// portfolioValue math one level more granular (e.g. "Turbo Attax 2020"
+// vs. "Turbo Attax 2025" individually, not just "Formula 1" combined).
+export interface SetValueEntry {
+  setId: string;
+  setName: string;
+  franchiseName: string;
+  cardCount: number;
+  portfolioValue: number;
+}
+
 export interface VolatileEntry {
   cardId: string;
   cardName: string;
@@ -54,6 +66,7 @@ export interface DashboardData {
   portfolioChangeToday: PortfolioChangeToday | null;
   franchiseBreakdown: FranchiseBreakdownEntry[];
   collectionGaps: CollectionGapEntry[];
+  setValueBreakdown: SetValueEntry[];
   mostVolatile: VolatileEntry[];
   groupedActivity: GroupedActivity[];
   wishlistCount: number;
@@ -124,6 +137,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       portfolioChangeToday: null,
       franchiseBreakdown: [],
       collectionGaps: [],
+      setValueBreakdown: [],
       mostVolatile: [],
       groupedActivity,
       wishlistCount,
@@ -164,6 +178,8 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     variantCounts.set(inst.variantId, (variantCounts.get(inst.variantId) ?? 0) + 1);
   }
 
+  const setValueMap = new Map<string, { setName: string; franchiseName: string; cardCount: number; portfolioValue: number }>();
+
   for (const inst of instances) {
     const franchise = inst.variant.card.set.series.franchise;
     const entry = franchiseMap.get(franchise.id) ?? {
@@ -188,7 +204,17 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     }
 
     franchiseMap.set(franchise.id, entry);
+
+    const set = inst.variant.card.set;
+    const setEntry = setValueMap.get(set.id) ?? { setName: set.name, franchiseName: franchise.name, cardCount: 0, portfolioValue: 0 };
+    setEntry.cardCount++;
+    setEntry.portfolioValue += marketPrice;
+    setValueMap.set(set.id, setEntry);
   }
+
+  const setValueBreakdown: SetValueEntry[] = [...setValueMap.entries()]
+    .map(([setId, entry]) => ({ setId, ...entry }))
+    .sort((a, b) => b.portfolioValue - a.portfolioValue);
 
   const { franchiseTotals, setTotals } = await getCatalogTotals();
 
@@ -289,6 +315,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     portfolioChangeToday,
     franchiseBreakdown,
     collectionGaps,
+    setValueBreakdown,
     mostVolatile,
     groupedActivity,
     wishlistCount,
