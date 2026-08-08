@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 export default async function CardsPage(
   props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }
 ) {
+  // TEMP PROFILING (2026-08-06 /cards Phase-1.5 investigation) — remove after gathering data.
+  const __t0 = performance.now();
   const searchParams = await props.searchParams;
   const q = typeof searchParams.q === "string" ? searchParams.q : "";
   const page = typeof searchParams.page === "string" ? parseInt(searchParams.page, 10) || 1 : 1;
@@ -40,6 +42,7 @@ export default async function CardsPage(
       }
     : {};
 
+  const __tBeforeCards = performance.now();
   const [cards, total] = await Promise.all([
     prisma.card.findMany({
       where,
@@ -61,11 +64,13 @@ export default async function CardsPage(
     }),
     prisma.card.count({ where }),
   ]);
+  const __tAfterCards = performance.now();
 
   const [imagesByCard, ownedVariantIds] = await Promise.all([
     getImagesForEntities("Card", cards.map((c) => c.id)),
     getOwnedVariantQuantities(cards.flatMap((c) => c.variants.map((v) => v.id))),
   ]);
+  const __tAfterImages = performance.now();
 
   const items = cards.map((c) => ({
     id: c.id,
@@ -83,6 +88,15 @@ export default async function CardsPage(
   }));
 
   const totalPages = Math.ceil(total / limit);
+
+  const __tEnd = performance.now();
+  console.log(
+    `[PROFILE /cards] searchParams=${(__tBeforeCards - __t0).toFixed(1)}ms ` +
+    `cardsQuery=${(__tAfterCards - __tBeforeCards).toFixed(1)}ms ` +
+    `imagesAndOwned=${(__tAfterImages - __tAfterCards).toFixed(1)}ms ` +
+    `mapping=${(__tEnd - __tAfterImages).toFixed(1)}ms ` +
+    `serverComponentTotal=${(__tEnd - __t0).toFixed(1)}ms`
+  );
 
   return <CardsBrowseClient items={items} query={q} page={page} totalPages={totalPages} total={total} />;
 }

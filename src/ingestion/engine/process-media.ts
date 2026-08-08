@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { SharpImageProcessor } from "../../../packages/media/processor/ImageProcessor";
-import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter } from "../../../packages/media";
+import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter } from "../../../packages/media";
 
 const processor = new SharpImageProcessor();
 const CATALOG_BUCKET = "catalog-media";
@@ -51,11 +51,25 @@ export async function findDuplicateByPerceptualHash(hash: string, excludeId?: st
   return null;
 }
 
-// Supabase Storage is at its plan quota (see project memory) — new catalog
-// media goes to Vercel Blob instead going forward. Media already re-hosted
-// on Supabase keeps its existing storageKey/URL untouched; this only
-// decides where the *next* upload lands.
+// Provider history: Supabase Storage hit its plan quota, so new catalog
+// media moved to Vercel Blob; Blob's own free tier is now the constraint
+// (2026-08-07 — confirmed via a real failed put(), not just a config
+// check), so Appwrite is the new default write provider going forward, per
+// explicit user decision (this was already planned as the fallback — see
+// PROJECT_STATE.md). Media already re-hosted on Supabase or Blob keeps its
+// existing storageKey/provider/URL untouched — this only decides where the
+// *next* upload lands; every read path selects the adapter per-row via
+// Media.provider (see src/lib/media/resolve.ts), so old and new media
+// coexist with no migration needed.
 function storageAdapter(): StorageAdapter {
+  if (process.env.APPWRITE_ENDPOINT && process.env.APPWRITE_PROJECT_ID && process.env.APPWRITE_API_KEY && process.env.APPWRITE_BUCKET_ID) {
+    return new AppwriteAdapter({
+      endpoint: process.env.APPWRITE_ENDPOINT,
+      projectId: process.env.APPWRITE_PROJECT_ID,
+      apiKey: process.env.APPWRITE_API_KEY,
+      bucketId: process.env.APPWRITE_BUCKET_ID,
+    });
+  }
   if (process.env.BLOB_READ_WRITE_TOKEN && process.env.BLOB_PUBLIC_BASE_URL) {
     return new VercelBlobAdapter({
       token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -64,7 +78,9 @@ function storageAdapter(): StorageAdapter {
     });
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("BLOB_READ_WRITE_TOKEN/BLOB_PUBLIC_BASE_URL or SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY required to re-host processed media");
+    throw new Error(
+      "APPWRITE_ENDPOINT/APPWRITE_PROJECT_ID/APPWRITE_API_KEY/APPWRITE_BUCKET_ID, or BLOB_READ_WRITE_TOKEN/BLOB_PUBLIC_BASE_URL, or SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY required to re-host processed media"
+    );
   }
   return new SupabaseStorageAdapter({
     url: process.env.SUPABASE_URL,
@@ -73,10 +89,25 @@ function storageAdapter(): StorageAdapter {
   });
 }
 
+// No timeout here previously meant a dead/slow source URL (eBay listing
+// images especially — sellers' CDNs vary wildly in reliability) could hang
+// indefinitely instead of failing fast; confirmed live during the Holiday
+// Basketball backfill (2026-08-07) as a real contributor to per-item time,
+// on top of the ~40% of eBay image URLs that fail outright. One retry after
+// a short backoff catches the transient case; the timeout bounds the worst
+// case for a truly dead URL.
 async function download(url: string): Promise<Buffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
-  return Buffer.from(await res.arrayBuffer());
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      if (attempt === 2) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  throw new Error(`unreachable`); // satisfies TS control-flow analysis — the loop above always returns or throws
 }
 
 async function upsertVariant(mediaId: string, type: string, image: { buffer: Buffer; width: number; height: number; size: number }, key: string) {

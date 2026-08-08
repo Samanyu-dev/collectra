@@ -115,7 +115,7 @@ export class GraphBuilder {
     return series.id;
   }
 
-  async getOrCreateSet(data: { id: string, name: string, seriesId: string, releaseDate?: Date, printedTotal?: number }) {
+  async getOrCreateSet(data: { id: string, name: string, seriesId: string, releaseDate?: Date, releaseCountry?: string, printedTotal?: number }) {
     const set = await prisma.set.upsert({
       where: { id: data.id },
       update: {
@@ -131,16 +131,17 @@ export class GraphBuilder {
       }
     });
 
-    if (data.releaseDate) {
+    if (data.releaseDate || data.releaseCountry) {
       // Check if release exists
       const existingRelease = await prisma.release.findFirst({
-        where: { setId: set.id, date: data.releaseDate }
+        where: { setId: set.id, date: data.releaseDate, country: data.releaseCountry }
       });
       if (!existingRelease) {
         await prisma.release.create({
           data: {
             setId: set.id,
-            date: data.releaseDate
+            date: data.releaseDate,
+            country: data.releaseCountry,
           }
         });
       }
@@ -159,10 +160,22 @@ export class GraphBuilder {
     return res.id;
   }
 
-  async getOrCreateParallel(name: string): Promise<string> {
+  /**
+   * `name` must already be the display-unique string (e.g. "Mini Diamond -
+   * Gold", "Pink Rainbow Foil") since Parallel.name is a single global
+   * namespace — `finish`/`color` are the decomposed, queryable axes stored
+   * alongside it (see schema.prisma's Parallel doc comment for why a
+   * combined name still exists even though the two axes are separated).
+   */
+  async getOrCreateParallel(name: string, opts?: { finish?: string; color?: string }): Promise<string> {
     if (this.parallelCache.has(name)) return this.parallelCache.get(name)!;
     const res = await upsertSafe(
-      () => prisma.parallel.upsert({ where: { name }, update: {}, create: { name } }),
+      () =>
+        prisma.parallel.upsert({
+          where: { name },
+          update: { finish: opts?.finish, color: opts?.color },
+          create: { name, finish: opts?.finish, color: opts?.color },
+        }),
       () => prisma.parallel.findUnique({ where: { name } })
     );
     this.parallelCache.set(name, res.id);
@@ -231,6 +244,59 @@ export class GraphBuilder {
     }
     this.insertCache.set(key, insert.id);
     return insert.id;
+  }
+
+  /**
+   * A sealed-product SKU (e.g. "Topps Premier League 2025/26 Hobby Box") —
+   * the root of the Product/ProductComponent/Pack/PossiblePull odds graph
+   * (see `src/app/products/[id]/page.tsx` and `pack-simulator`, both already
+   * built against this graph but unpopulated for any set until now). Not
+   * cached in-memory since it's created once per SKU per seed run, not
+   * looked up per-card in a hot loop like the other helpers here.
+   */
+  async getOrCreateProduct(name: string, setId?: string, msrpUsd?: number): Promise<string> {
+    let product = await prisma.product.findFirst({ where: { name, setId } });
+    if (!product) {
+      try {
+        product = await prisma.product.create({ data: { name, setId, msrpUsd } });
+      } catch (e: any) {
+        if (!isUniqueConstraintError(e)) throw e;
+        product = await prisma.product.findFirst({ where: { name, setId } });
+        if (!product) throw e;
+      }
+    } else if (msrpUsd != null && product.msrpUsd == null) {
+      product = await prisma.product.update({ where: { id: product.id }, data: { msrpUsd } });
+    }
+    return product.id;
+  }
+
+  /** A pack type within a product (e.g. "Hobby Pack", "Retail Pack") — PossiblePull rows hang off this. */
+  async getOrCreatePack(name: string): Promise<string> {
+    let pack = await prisma.pack.findFirst({ where: { name } });
+    if (!pack) {
+      try {
+        pack = await prisma.pack.create({ data: { name } });
+      } catch (e: any) {
+        if (!isUniqueConstraintError(e)) throw e;
+        pack = await prisma.pack.findFirst({ where: { name } });
+        if (!pack) throw e;
+      }
+    }
+    return pack.id;
+  }
+
+  /**
+   * A citation for a documented fact (odds, weight, etc.) — `sourceType` is
+   * one of OFFICIAL/COMMUNITY/ESTIMATED/RESEARCH per the schema's existing
+   * convention (see Evidence in schema.prisma), so every odds figure this
+   * project writes can be filtered/audited by how trustworthy its source is.
+   */
+  async getOrCreateEvidence(sourceType: string, sourceUrl?: string, verified = false): Promise<string> {
+    let evidence = await prisma.evidence.findFirst({ where: { sourceType, sourceUrl } });
+    if (!evidence) {
+      evidence = await prisma.evidence.create({ data: { sourceType, sourceUrl, verified } });
+    }
+    return evidence.id;
   }
 }
 

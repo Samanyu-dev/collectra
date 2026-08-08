@@ -49,8 +49,14 @@ export default async function MigrationReview(props: { params: Promise<{ id: str
         const images = variant ? cardImages.get(variant.cardId) ?? [] : [];
         const image = pickPrimaryImage(images);
         let name = variant?.card.name ?? 'Unknown card';
-        if (variant?.printing?.name || variant?.parallel?.name) {
-          name += ` (${[variant.printing?.name, variant.parallel?.name].filter(Boolean).join(' ')})`;
+        // "Base" is the near-universal default Printing and conveys nothing
+        // next to an actual parallel name (e.g. "(Base Glitter Holiday)"
+        // reads backwards) — only show it when there's no parallel to pair
+        // it with, i.e. it's the only descriptor available.
+        const printingLabel = variant?.printing?.name && variant.printing.name.toLowerCase() !== 'base' ? variant.printing.name : null;
+        const descriptor = variant?.parallel?.name ? [printingLabel, variant.parallel.name].filter(Boolean).join(' ') : (printingLabel ?? variant?.printing?.name);
+        if (descriptor) {
+          name += ` (${descriptor})`;
         }
         return { variantId: c.variantId, confidence: c.confidence, name, imageUrl: image?.url ?? null };
       }),

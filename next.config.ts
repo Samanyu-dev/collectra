@@ -12,11 +12,19 @@ const nextConfig: NextConfig = {
       // a workaround instead: Next's optimizer rejects any remote host not
       // listed here, so nothing was ever being resized/compressed/lazy-loaded.
       { protocol: 'https', hostname: 'fnynunzvwvfgiucemmeo.supabase.co' },
-      // Vercel Blob — new catalog/marketplace media lands here now (see
-      // packages/media/storage/VercelBlobAdapter.ts); Supabase Storage is at
-      // its plan quota. Every Blob store gets its own opaque per-store
-      // subdomain, so this wildcards rather than hardcoding one store's host.
-      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }
+      // Vercel Blob — catalog/marketplace media landed here after Supabase
+      // Storage hit its plan quota; every Blob store gets its own opaque
+      // per-store subdomain, so this wildcards rather than hardcoding one
+      // store's host.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
+      // Appwrite — new default write provider as of 2026-08-07 (Vercel
+      // Blob's own free tier became the new constraint). Wildcarded across
+      // Appwrite Cloud's region subdomains (nyc, fra, syd, ...), not
+      // hardcoded to this project's "nyc" region, same reasoning as Blob
+      // above — this exact class of bug (missing remotePatterns entry
+      // throwing a Server Components render error) already happened once
+      // for Blob, see PROJECT_STATE.md.
+      { protocol: 'https', hostname: '*.cloud.appwrite.io' }
     ]
   },
   experimental: {

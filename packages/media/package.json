@@ -11,6 +11,7 @@
     "@supabase/supabase-js": "^2.45.0",
     "@vercel/blob": "^2.6.1",
     "blurhash": "^2.0.5",
+    "node-appwrite": "^27.1.0",
     "sharp": "^0.33.2"
   },
   "devDependencies": {
