@@ -735,6 +735,158 @@ const ALL_CARDS: CardRow[] = [
   { number: "QE 15", name: "Alyssa Thompson", team: "Chelsea", type: "Queens of Europe", persons: ["Alyssa Thompson"] },
   { number: "QE 16", name: "Ella Toone", team: "Manchester United", type: "Queens of Europe", persons: ["Ella Toone"] },
   { number: "QE EN", name: "Mariona Caldentey", team: "Arsenal", type: "Queens of Europe Energy", persons: ["Mariona Caldentey"] },
+
+  // Gladiators Limited Edition - Centurions (Mega Tin 1)
+  { number: "GLE 1", name: "Erling Haaland", team: "Manchester City", type: "Gladiators Limited Edition", persons: ["Erling Haaland"] },
+  { number: "GLE 2", name: "Raphinha", team: "FC Barcelona", type: "Gladiators Limited Edition", persons: ["Raphinha"] },
+  { number: "GLE 3", name: "Scott McTominay", team: "SSC Napoli", type: "Gladiators Limited Edition", persons: ["Scott McTominay"] },
+
+  // Gladiators Limited Edition - Warriors (Mega Tin 2)
+  { number: "GLE 4", name: "Virgil van Dijk", team: "Liverpool", type: "Gladiators Limited Edition", persons: ["Virgil van Dijk"] },
+  { number: "GLE 5", name: "Jude Bellingham", team: "Real Madrid CF", type: "Gladiators Limited Edition", persons: ["Jude Bellingham"] },
+  { number: "GLE 6", name: "Lautaro Martínez", team: "FC Internazionale Milano", type: "Gladiators Limited Edition", persons: ["Lautaro Martínez"] },
+
+  // Gladiators Limited Edition - Spartans (Mega Tin 3)
+  { number: "GLE 7", name: "Cole Palmer", team: "Chelsea", type: "Gladiators Limited Edition", persons: ["Cole Palmer"] },
+  { number: "GLE 8", name: "Harry Kane", team: "FC Bayern München", type: "Gladiators Limited Edition", persons: ["Harry Kane"] },
+  { number: "GLE 9", name: "Ousmane Dembélé", team: "Paris Saint-Germain", type: "Gladiators Limited Edition", persons: ["Ousmane Dembélé"] },
+
+  // Gladiators Limited Edition - Battlers (Mega Tin 4)
+  { number: "GLE 10", name: "Declan Rice", team: "Arsenal", type: "Gladiators Limited Edition", persons: ["Declan Rice"] },
+  { number: "GLE 11", name: "Conor Gallagher", team: "Atlético de Madrid", type: "Gladiators Limited Edition", persons: ["Conor Gallagher"] },
+  { number: "GLE 12", name: "Granit Xhaka", team: "Bayer 04 Leverkusen", type: "Gladiators Limited Edition", persons: ["Granit Xhaka"] },
+
+  // Worldies Limited Edition - World Beaters (Booster Tin 1)
+  { number: "WLE 1", name: "Omar Marmoush", team: "Manchester City", type: "Worldies Limited Edition", persons: ["Omar Marmoush"] },
+  { number: "WLE 2", name: "Trent Alexander-Arnold", team: "Real Madrid CF", type: "Worldies Limited Edition", persons: ["Trent Alexander-Arnold"] },
+  { number: "WLE 3", name: "Michael Olise", team: "FC Bayern München", type: "Worldies Limited Edition", persons: ["Michael Olise"] },
+
+  // Worldies Limited Edition - Global Goalscorers (Booster Tin 2)
+  { number: "WLE 4", name: "Alexander Isak", team: "Newcastle United", type: "Worldies Limited Edition", persons: ["Alexander Isak"] },
+  { number: "WLE 5", name: "Julián Alvarez", team: "Atlético de Madrid", type: "Worldies Limited Edition", persons: ["Julián Alvarez"] },
+  { number: "WLE 6", name: "Romelu Lukaku", team: "SSC Napoli", type: "Worldies Limited Edition", persons: ["Romelu Lukaku"] },
+
+  // Worldies Limited Edition - Homegrown Heroes (Booster Tin 3)
+  { number: "WLE 7", name: "Bukayo Saka", team: "Arsenal", type: "Worldies Limited Edition", persons: ["Bukayo Saka"] },
+  { number: "WLE 8", name: "Lamine Yamal", team: "FC Barcelona", type: "Worldies Limited Edition", persons: ["Lamine Yamal"] },
+  { number: "WLE 9", name: "Federico Dimarco", team: "FC Internazionale Milano", type: "Worldies Limited Edition", persons: ["Federico Dimarco"] },
+
+  // Worldies Limited Edition - International Icons (Booster Tin 4)
+  { number: "WLE 10", name: "Florian Wirtz", team: "Liverpool", type: "Worldies Limited Edition", persons: ["Florian Wirtz"] },
+  { number: "WLE 11", name: "Kylian Mbappé", team: "Real Madrid CF", type: "Worldies Limited Edition", persons: ["Kylian Mbappé"] },
+  { number: "WLE 12", name: "Khvicha Kvaratskhelia", team: "Paris Saint-Germain", type: "Worldies Limited Edition", persons: ["Khvicha Kvaratskhelia"] },
+
+  // Black Gold Limited Edition (Topps.com Exclusive) (BG 1-8)
+  { number: "BG 1", name: "Gabriel Martinelli", team: "Arsenal", type: "Black Gold Limited Edition", persons: ["Gabriel Martinelli"] },
+  { number: "BG 2", name: "Omar Marmoush", team: "Manchester City", type: "Black Gold Limited Edition", persons: ["Omar Marmoush"] },
+  { number: "BG 3", name: "Estêvão", team: "Chelsea", type: "Black Gold Limited Edition", persons: ["Estêvão"] },
+  { number: "BG 4", name: "Robert Lewandowski", team: "FC Barcelona", type: "Black Gold Limited Edition", persons: ["Robert Lewandowski"] },
+  { number: "BG 5", name: "Vini Jr.", team: "Real Madrid CF", type: "Black Gold Limited Edition", persons: ["Vini Jr."] },
+  { number: "BG 6", name: "Scott McTominay", team: "SSC Napoli", type: "Black Gold Limited Edition", persons: ["Scott McTominay"] },
+  { number: "BG 7", name: "Alessandro Bastoni", team: "FC Internazionale Milano", type: "Black Gold Limited Edition", persons: ["Alessandro Bastoni"] },
+  { number: "BG 8", name: "Désiré Doué", team: "Paris Saint-Germain", type: "Black Gold Limited Edition", persons: ["Désiré Doué"] },
+
+  // Platinum Pull Limited Edition (1:28 packets) (PL 1-9)
+  { number: "PL 1", name: "Alexis Mac Allister", team: "Liverpool", type: "Platinum Pull Limited Edition", persons: ["Alexis Mac Allister"] },
+  { number: "PL 2", name: "Martin Ødegaard", team: "Arsenal", type: "Platinum Pull Limited Edition", persons: ["Martin Ødegaard"] },
+  { number: "PL 3", name: "Enzo Fernádez", team: "Chelsea", type: "Platinum Pull Limited Edition", persons: ["Enzo Fernádez"] },
+  { number: "PL 4", name: "Sávio", team: "Manchester City", type: "Platinum Pull Limited Edition", persons: ["Sávio"] },
+  { number: "PL 5", name: "Trent Alexander-Arnold", team: "Real Madrid CF", type: "Platinum Pull Limited Edition", persons: ["Trent Alexander-Arnold"] },
+  { number: "PL 6", name: "Joshua Kimmich", team: "FC Bayern München", type: "Platinum Pull Limited Edition", persons: ["Joshua Kimmich"] },
+  { number: "PL 7", name: "Khvicha Kvaratskhelia", team: "Paris Saint-Germain", type: "Platinum Pull Limited Edition", persons: ["Khvicha Kvaratskhelia"] },
+  { number: "PL 8", name: "Scott McTominay", team: "SSC Napoli", type: "Platinum Pull Limited Edition", persons: ["Scott McTominay"] },
+  { number: "PL 9", name: "Alessandro Bastoni", team: "FC Internazionale Milano", type: "Platinum Pull Limited Edition", persons: ["Alessandro Bastoni"] },
+
+  // Goalblast! Limited Edition - Starter Pack (LE 1)
+  { number: "LE 1", name: "Erling Haaland", team: "Manchester City", type: "Goalblast! Limited Edition", persons: ["Erling Haaland"] },
+
+  // Speed Strike Limited Edition - Starter Pack (LE 2)
+  { number: "LE 2", name: "Kylian Mbappé", team: "Real Madrid CF", type: "Speed Strike Limited Edition", persons: ["Kylian Mbappé"] },
+
+  // Starboy Limited Edition (Update Eco Pack #1 Scream Team Exclusive)
+  { number: "ST LE 1", name: "Franco Mastantuono", team: "Real Madrid CF", type: "Starboy Limited Edition", persons: ["Franco Mastantuono"] },
+
+  // Supreme Talent Limited Edition (Update Eco Pack #2 Star Ballers Exclusive)
+  // Spelled "Dembele" (no accent) to match the pre-existing #468 "100 Club Unbeatable
+  // 101" Person row exactly — this file already has a separately-created, correctly
+  // accented "Ousmane Dembélé" Person from card #242 etc.; that split predates this
+  // edit and isn't fixed here (out of scope), just not made worse by adding a third variant.
+  { number: "SPT LE 1", name: "Ousmane Dembele", team: "Paris Saint-Germain", type: "Supreme Talent Limited Edition", persons: ["Ousmane Dembele"] },
+
+  // Star Girl Limited Edition (Update Eco Pack #3 Queens of Europe Exclusive)
+  { number: "GE LE 1", name: "Vicky López", team: "FC Barcelona", type: "Star Girl Limited Edition", persons: ["Vicky López"] },
+
+  // Fired Up! Limited Edition (LE 28) — already seeded by curate-topps-match-attax-inserts.ts
+
+  // UCL Medal Winner Relic (1:12 Booster Tins; 1:6 Mega Tins) (UCLW-*)
+  { number: "UCLW-DV", name: "David Villa", team: "FC Barcelona", type: "UCL Medal Winner Relic", persons: ["David Villa"] },
+  { number: "UCLW-FR", name: "Frank Rijkaard", team: "AFC Ajax", type: "UCL Medal Winner Relic", persons: ["Frank Rijkaard"] },
+  { number: "UCLW-JD", name: "Jerzy Dudek", team: "Liverpool", type: "UCL Medal Winner Relic", persons: ["Jerzy Dudek"] },
+  { number: "UCLW-JM", name: "Juan Mata", team: "Chelsea", type: "UCL Medal Winner Relic", persons: ["Juan Mata"] },
+  { number: "UCLW-KM", name: "Karim Benzema", team: "Real Madrid CF", type: "UCL Medal Winner Relic", persons: ["Karim Benzema"] },
+  { number: "UCLW-LM", name: "Lionel Messi", team: "FC Barcelona", type: "UCL Medal Winner Relic", persons: ["Lionel Messi"] },
+  { number: "UCLW-MA", name: "Marquinhos", team: "Paris Saint-Germain", type: "UCL Medal Winner Relic", persons: ["Marquinhos"] },
+  { number: "UCLW-TK", name: "Toni Kroos", team: "FC Bayern München", type: "UCL Medal Winner Relic", persons: ["Toni Kroos"] },
+  { number: "UCLW-WS", name: "Wesley Sneijder", team: "FC Internazionale Milano", type: "UCL Medal Winner Relic", persons: ["Wesley Sneijder"] },
+  { number: "UCLW-ZZ", name: "Zinedine Zidane", team: "Real Madrid CF", type: "UCL Medal Winner Relic", persons: ["Zinedine Zidane"] },
+
+  // Player-Worn Jersey Relic (1:50 Mega Tins) (JR-*) — distinct roster from the
+  // "Match Attax Extra 2025/26" set's own JR-* codes; different set, no collision.
+  { number: "JR-AB", name: "Alessandro Bastoni", team: "FC Internazionale Milano", type: "Player-Worn Jersey Relic", persons: ["Alessandro Bastoni"] },
+  { number: "JR-AG", name: "Antoine Griezmann", team: "Atlético de Madrid", type: "Player-Worn Jersey Relic", persons: ["Antoine Griezmann"] },
+  { number: "JR-BB", name: "Bradley Barcola", team: "Paris Saint-Germain", type: "Player-Worn Jersey Relic", persons: ["Bradley Barcola"] },
+  { number: "JR-BG", name: "Bruno Guimarães", team: "Newcastle United", type: "Player-Worn Jersey Relic", persons: ["Bruno Guimarães"] },
+  { number: "JR-CG", name: "Cody Gakpo", team: "Liverpool", type: "Player-Worn Jersey Relic", persons: ["Cody Gakpo"] },
+  { number: "JR-DO", name: "Dani Olmo", team: "FC Barcelona", type: "Player-Worn Jersey Relic", persons: ["Dani Olmo"] },
+  { number: "JR-DS", name: "Dominic Solanke", team: "Tottenham Hotspur", type: "Player-Worn Jersey Relic", persons: ["Dominic Solanke"] },
+  { number: "JR-EF", name: "Enzo Fernádez", team: "Chelsea", type: "Player-Worn Jersey Relic", persons: ["Enzo Fernádez"] },
+  { number: "JR-FL", name: "Fermín López", team: "FC Barcelona", type: "Player-Worn Jersey Relic", persons: ["Fermín López"] },
+  { number: "JR-GQ", name: "Geovany Quenda", team: "Sporting Clube de Portugal", type: "Player-Worn Jersey Relic", persons: ["Geovany Quenda"] },
+  { number: "JR-JD", name: "Jérémy Doku", team: "Manchester City", type: "Player-Worn Jersey Relic", persons: ["Jérémy Doku"] },
+  { number: "JR-JK", name: "Joshua Kimmich", team: "FC Bayern München", type: "Player-Worn Jersey Relic", persons: ["Joshua Kimmich"] },
+  { number: "JR-LC", name: "Levi Colwill", team: "Chelsea", type: "Player-Worn Jersey Relic", persons: ["Levi Colwill"] },
+  { number: "JR-LY", name: "Lamine Yamal", team: "FC Barcelona", type: "Player-Worn Jersey Relic", persons: ["Lamine Yamal"] },
+  { number: "JR-MA", name: "Manuel Akanji", team: "Manchester City", type: "Player-Worn Jersey Relic", persons: ["Manuel Akanji"] },
+  { number: "JR-MS", name: "Mohamed Salah", team: "Liverpool", type: "Player-Worn Jersey Relic", persons: ["Mohamed Salah"] },
+  { number: "JR-MT", name: "Marcus Thuram", team: "FC Internazionale Milano", type: "Player-Worn Jersey Relic", persons: ["Marcus Thuram"] },
+  { number: "JR-NS", name: "Nico Schlotterbeck", team: "Borussia Dortmund", type: "Player-Worn Jersey Relic", persons: ["Nico Schlotterbeck"] },
+  { number: "JR-SAV", name: "Sávio", team: "Manchester City", type: "Player-Worn Jersey Relic", persons: ["Sávio"] },
+  { number: "JR-SC", name: "Santiago Castro", team: "Bologna FC 1909", type: "Player-Worn Jersey Relic", persons: ["Santiago Castro"] },
+  { number: "JR-SHM", name: "Son Heung-Min", team: "Tottenham Hotspur", type: "Player-Worn Jersey Relic", persons: ["Son Heung-Min"] },
+  { number: "JR-VIT", name: "Vitinha", team: "Paris Saint-Germain", type: "Player-Worn Jersey Relic", persons: ["Vitinha"] },
+
+  // Genuine Autograph (5,000 Total Autographs) (AC-*) — distinct roster from the
+  // "Match Attax Extra 2025/26" set's own AC-* codes; different set, no collision.
+  { number: "AC-AGR", name: "Alejandro Grimaldo", team: "Bayer 04 Leverkusen", type: "Genuine Autograph", persons: ["Alejandro Grimaldo"] },
+  { number: "AC-AST", name: "Angelo Stiller", team: "VfB Stuttgart", type: "Genuine Autograph", persons: ["Angelo Stiller"] },
+  // Source checklist reused code "AC-AST" for a second, different player (Antonio
+  // Silva) — a genuine error in the source, not a transcription slip here. Two Cards
+  // can't share a number, so disambiguated as "AC-AST2".
+  { number: "AC-AST2", name: "Antonio Silva", team: "SL Benfica", type: "Genuine Autograph", persons: ["Antonio Silva"] },
+  { number: "AC-CP", name: "Cole Palmer", team: "Chelsea", type: "Genuine Autograph", persons: ["Cole Palmer"] },
+  { number: "AC-DD", name: "Denzel Dumfries", team: "FC Internazionale Milano", type: "Genuine Autograph", persons: ["Denzel Dumfries"] },
+  { number: "AC-DH", name: "Dean Huijsen", team: "Real Madrid CF", type: "Genuine Autograph", persons: ["Dean Huijsen"] },
+  { number: "AC-DMA", name: "Donyell Malen", team: "Aston Villa", type: "Genuine Autograph", persons: ["Donyell Malen"] },
+  { number: "AC-DS", name: "Dominik Szoboszlai", team: "Liverpool", type: "Genuine Autograph", persons: ["Dominik Szoboszlai"] },
+  { number: "AC-DSO", name: "Dominic Solanke", team: "Tottenham Hotspur", type: "Genuine Autograph", persons: ["Dominic Solanke"] },
+  { number: "AC-GI", name: "Gonçalo Inácio", team: "Sporting Clube de Portugal", type: "Genuine Autograph", persons: ["Gonçalo Inácio"] },
+  { number: "AC-JG", name: "Joško Gvardiol", team: "Manchester City", type: "Genuine Autograph", persons: ["Joško Gvardiol"] },
+  { number: "AC-JN", name: "João Neves", team: "Paris Saint-Germain", type: "Genuine Autograph", persons: ["João Neves"] },
+  { number: "AC-LSP", name: "Leonardo Spinazzola", team: "SSC Napoli", type: "Genuine Autograph", persons: ["Leonardo Spinazzola"] },
+  { number: "AC-MK", name: "Milos Kerkez", team: "Liverpool", type: "Genuine Autograph", persons: ["Milos Kerkez"] },
+  { number: "AC-MR", name: "Morgan Rogers", team: "Aston Villa", type: "Genuine Autograph", persons: ["Morgan Rogers"] },
+  { number: "AC-NJ", name: "Nicolas Jackson", team: "Chelsea", type: "Genuine Autograph", persons: ["Nicolas Jackson"] },
+  { number: "AC-NM", name: "Nuno Mendes", team: "Paris Saint-Germain", type: "Genuine Autograph", persons: ["Nuno Mendes"] },
+  { number: "AC-NW", name: "Nico Williams", team: "Athletic Club", type: "Genuine Autograph", persons: ["Nico Williams"] },
+  { number: "AC-RAP", name: "Raphinha", team: "FC Barcelona", type: "Genuine Autograph", persons: ["Raphinha"] },
+  { number: "AC-RM", name: "Rodrigo Mora", team: "FC Porto", type: "Genuine Autograph", persons: ["Rodrigo Mora"] },
+  { number: "AC-SG", name: "Serhou Guirassy", team: "Borussia Dortmund", type: "Genuine Autograph", persons: ["Serhou Guirassy"] },
+  { number: "AC-ST", name: "Sandro Tonali", team: "Newcastle United", type: "Genuine Autograph", persons: ["Sandro Tonali"] },
+  { number: "AC-WZE", name: "Warren Zaïre-Emery", team: "Paris Saint-Germain", type: "Genuine Autograph", persons: ["Warren Zaïre-Emery"] },
+
+  // Lethal Combo Autograph (LC-RN, autograph version — distinct card from the base
+  // "Lethal Combo" LC-RN insert above; disambiguated to avoid a cardId collision)
+  { number: "LC-RN-AUTO", name: "Ronaldinho / Neymar Jr.", team: "FC Barcelona", type: "Lethal Combo Autograph", persons: ["Ronaldinho", "Neymar Jr."] },
 ];
 
 async function main() {
@@ -758,13 +910,29 @@ async function main() {
 
   let created = 0;
   let skipped = 0;
+  let backfilled = 0;
   const t0 = Date.now();
 
   for (const [i, row] of ALL_CARDS.entries()) {
     const slug = String(row.number).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     const cardId = `${SET_ID}-${slug}`;
-    const existing = await prisma.card.findUnique({ where: { id: cardId } });
-    if (existing) { skipped++; continue; }
+    // Insert = subset/insert category (e.g. "Black Edge Edition", "Squadzone Exclusive
+    // Festive Edition") — separate from Printing/Parallel. This is what the collection
+    // UI's "Progress by Set" breakdown and card-type filter actually group by
+    // (getVariantCardType checks variant.insert.name before falling back to Printing),
+    // so every non-base subset needs one linked here, not just tagged on subtypes.
+    const insertId = row.type && row.type !== "Base" ? await builder.getOrCreateInsert(row.type, set.id) : undefined;
+
+    const existing = await prisma.card.findUnique({ where: { id: cardId }, include: { variants: true } });
+    if (existing) {
+      skipped++;
+      const baseVariant = existing.variants.find((v) => v.printingId === basePrintingId) ?? existing.variants[0];
+      if (baseVariant && insertId && baseVariant.insertId !== insertId) {
+        await prisma.variant.update({ where: { id: baseVariant.id }, data: { insertId } });
+        backfilled++;
+      }
+      continue;
+    }
 
     const personIds: string[] = [];
     if (row.persons) {
@@ -786,7 +954,7 @@ async function main() {
       },
     });
 
-    await prisma.variant.create({ data: { cardId: card.id, printingId: basePrintingId } });
+    await prisma.variant.create({ data: { cardId: card.id, printingId: basePrintingId, insertId } });
 
     created++;
     if ((i + 1) % 50 === 0) console.log(`  [${i + 1}/${ALL_CARDS.length}] created=${created}`);
@@ -795,7 +963,7 @@ async function main() {
   const finalCount = await prisma.card.count({ where: { setId: set.id } });
   await prisma.set.update({ where: { id: set.id }, data: { printedTotal: finalCount } });
 
-  console.log(`Done. Created ${created} cards, skipped ${skipped}. Set: ${SET_NAME} (${(Date.now() - t0) / 1000}s). printedTotal now ${finalCount}.`);
+  console.log(`Done. Created ${created} cards, skipped ${skipped}, backfilled ${backfilled} insert link(s). Set: ${SET_NAME} (${(Date.now() - t0) / 1000}s). printedTotal now ${finalCount}.`);
 }
 
 main()
