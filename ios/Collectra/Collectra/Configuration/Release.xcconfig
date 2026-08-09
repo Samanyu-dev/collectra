@@ -1,0 +1,12 @@
+// Release (device/TestFlight/App Store) configuration.
+//
+// TODO before any real TestFlight/App Store build: confirm the actual
+// production domain for the "collectra" Vercel project (vercel.json /
+// .vercel/project.json only has the project id, not a confirmed custom
+// domain) and replace this placeholder. Never point Release at localhost.
+API_BASE_URL = https:/$()/collectra.vercel.app
+
+// Same Supabase project as Debug and as the web app — auth is shared across
+// environments, only the API base URL differs.
+SUPABASE_URL = https:/$()/fnynunzvwvfgiucemmeo.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZueW51bnp2d3ZmZ2l1Y2VtbWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDY2MzUsImV4cCI6MjEwMDIyMjYzNX0.oDQl-94WIHgNb_c0d6ppAkR76q8DDvm70MjXSpjsXsE

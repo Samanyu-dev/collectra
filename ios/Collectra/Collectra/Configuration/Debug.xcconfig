@@ -1,0 +1,13 @@
+// Debug (Simulator) configuration.
+//
+// The Simulator shares the host Mac's network stack, so `localhost` here
+// resolves to the Mac running the Next.js dev server — unlike a physical
+// device, which would need the Mac's LAN IP instead (documented in
+// ios/Collectra/README.md for when a later phase needs device testing).
+API_BASE_URL = http:/$()/localhost:3000
+
+// Same Supabase project as the web app (public anon key — safe to ship in a
+// client binary, matches the web app's NEXT_PUBLIC_SUPABASE_* values; never
+// the service-role key).
+SUPABASE_URL = https:/$()/fnynunzvwvfgiucemmeo.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZueW51bnp2d3ZmZ2l1Y2VtbWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDY2MzUsImV4cCI6MjEwMDIyMjYzNX0.oDQl-94WIHgNb_c0d6ppAkR76q8DDvm70MjXSpjsXsE
