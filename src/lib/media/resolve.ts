@@ -1,7 +1,6 @@
-import { PrismaClient, Media } from "@prisma/client";
-import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter } from "../../../packages/media";
-
-const prisma = new PrismaClient();
+import { Media } from "@prisma/client";
+import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter } from "../../../packages/media";
+import { prisma } from "../prisma";
 
 // Hybrid Media Source priority order — see prisma/schema.prisma Media.sourceType docs.
 // Football database foundation (Scanner-first): a verified real photo of the
@@ -81,14 +80,32 @@ function storageAdapterFor(media: Media): StorageAdapter | null {
   if (media.provider === "local") {
     return new LocalStorageAdapter("public/media");
   }
+  if (media.provider === "appwrite") {
+    if (!process.env.APPWRITE_ENDPOINT || !process.env.APPWRITE_PROJECT_ID || !process.env.APPWRITE_API_KEY || !process.env.APPWRITE_BUCKET_ID) return null;
+    return new AppwriteAdapter({
+      endpoint: process.env.APPWRITE_ENDPOINT,
+      projectId: process.env.APPWRITE_PROJECT_ID,
+      apiKey: process.env.APPWRITE_API_KEY,
+      bucketId: process.env.APPWRITE_BUCKET_ID,
+    });
+  }
   return null; // "external" has no adapter — storageKey IS the URL
 }
 
+// Appwrite buckets are left with default (non-public) permissions (see
+// AppwriteAdapter.getSignedUrl's own doc comment) — a bare getPublicUrl()
+// view URL 403s/times out for renderable media, confirmed live via
+// "upstream image response timed out" errors for cloud.appwrite.io URLs.
+// Only this provider needs a signed URL; every other adapter's URL is
+// already directly loadable.
+const APPWRITE_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
+
 /** Resolves a Media row to the URL the browser should actually load. */
-export function mediaUrl(media: Media): string {
+export async function mediaUrl(media: Media): Promise<string> {
   if (media.provider === "external") return media.storageKey;
   const adapter = storageAdapterFor(media);
   if (!adapter) throw new Error(`No storage adapter available for Media ${media.id} (provider=${media.provider})`);
+  if (media.provider === "appwrite") return adapter.getSignedUrl(media.storageKey, APPWRITE_SIGNED_URL_TTL_SECONDS);
   return adapter.getPublicUrl(media.storageKey);
 }
 
@@ -120,11 +137,15 @@ export async function getImagesForEntities(entityType: string, entityIds: string
     include: { media: true },
   });
 
-  for (const a of attachments) {
-    if (a.media.status !== "READY") continue;
-    const list = result.get(a.entityId) ?? [];
-    list.push({ url: mediaUrl(a.media), type: a.usage });
-    result.set(a.entityId, list);
+  const resolved = await Promise.all(
+    attachments
+      .filter((a) => a.media.status === "READY")
+      .map(async (a) => ({ entityId: a.entityId, image: { url: await mediaUrl(a.media), type: a.usage } }))
+  );
+  for (const { entityId, image } of resolved) {
+    const list = result.get(entityId) ?? [];
+    list.push(image);
+    result.set(entityId, list);
   }
 
   return result;

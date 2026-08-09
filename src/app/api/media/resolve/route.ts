@@ -23,5 +23,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No media found for entity" }, { status: 404 });
   }
 
-  return NextResponse.redirect(mediaUrl(media), { status: 307 });
+  return NextResponse.redirect(await mediaUrl(media), { status: 307 });
 }

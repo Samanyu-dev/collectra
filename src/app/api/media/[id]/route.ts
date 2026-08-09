@@ -10,5 +10,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!media) {
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
-  return NextResponse.redirect(mediaUrl(media), { status: 307 });
+  return NextResponse.redirect(await mediaUrl(media), { status: 307 });
 }
