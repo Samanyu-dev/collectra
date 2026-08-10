@@ -190,7 +190,8 @@ export async function getCollectionWorkspace(userId: string): Promise<Collection
       }),
     ]);
 
-  const scanMediaUrlById = new Map(scanMedia.map((m) => [m.id, mediaUrl(m)]));
+  const scanMediaUrlEntries = await Promise.all(scanMedia.map(async (m) => [m.id, await mediaUrl(m)] as const));
+  const scanMediaUrlById = new Map(scanMediaUrlEntries);
   const listingByInstanceId = new Map(listings.map((l) => [l.instanceId, l]));
   const wishlistedCardIds = new Set(wishlistEntries.flatMap((w) => (w.cardId ? [w.cardId] : [])));
 
@@ -453,4 +454,132 @@ export async function getCollectionWorkspace(userId: string): Promise<Collection
       portfolio,
     },
   };
+}
+
+/**
+ * Lean counterpart to `getCollectionWorkspace`, scoped to exactly what a
+ * card-tile grid needs (Phase 5 iOS Shelf) — no sidebar analytics
+ * (setProgress, top teams/sets/players, portfolio history, activity feed,
+ * intelligence-feed health/completion scores).
+ *
+ * Justified by direct measurement against a real 1,923-instance account
+ * (Phase 5 performance investigation, 2026-08-10): the shared
+ * `instance.findMany` alone took ~11.2s; of the rest, `set.findMany` for
+ * `setProgress` (all cards + teams per owned set) took ~4.8s and the
+ * unbounded `priceObservation.findMany` across every owned variant (used
+ * only for "price move" activity entries) took ~2.5s — neither of which a
+ * simple owned-cards grid needs. This function skips both entirely, plus
+ * `getIntelligenceFeed` and the full (not just creation-type) event query,
+ * and drops `certification`/`teams`/`persons` from the include — none of
+ * which `CollectionItem` itself reads (confirmed against every field this
+ * function actually assigns below).
+ *
+ * `getCollectionWorkspace` itself is UNCHANGED — the web `/shelf` dashboard
+ * still needs the full aggregation, and nothing here alters its behavior.
+ * This is purely additive (new function, new route — see
+ * src/app/api/v1/shelf/collection/route.ts).
+ */
+export async function getShelfCollectionItems(userId: string): Promise<CollectionItem[]> {
+  const instances = await prisma.instance.findMany({
+    where: { userId },
+    include: {
+      variant: {
+        include: {
+          card: { include: { set: { include: { series: { include: { franchise: true } } } } } },
+          printing: true,
+          parallel: true,
+          currentPrice: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (instances.length === 0) return [];
+
+  const cardIds = [...new Set(instances.map((i) => i.variant.card.id))];
+  const variantIds = [...new Set(instances.map((i) => i.variantId))];
+  const scanMediaIds = instances.flatMap((i) => (i.scanMediaId ? [i.scanMediaId] : []));
+
+  const [cardImages, variantImages, listings, wishlistEntries, creationEvents, scanMedia] = await Promise.all([
+    getImagesForEntities("Card", cardIds),
+    getImagesForEntities("Variant", variantIds),
+    prisma.listing.findMany({
+      where: { instance: { userId }, status: { in: ["ACTIVE", "RESERVED"] } },
+      select: { id: true, instanceId: true },
+    }),
+    prisma.wishlist.findMany({ where: { userId, cardId: { in: cardIds } }, select: { cardId: true } }),
+    prisma.event.findMany({
+      where: { userId, type: { in: [...CREATION_EVENT_TYPES] } },
+      orderBy: { timestamp: "desc" },
+    }),
+    scanMediaIds.length > 0
+      ? prisma.media.findMany({ where: { id: { in: scanMediaIds }, status: "READY" } })
+      : Promise.resolve([]),
+  ]);
+
+  const scanMediaUrlEntries = await Promise.all(scanMedia.map(async (m) => [m.id, await mediaUrl(m)] as const));
+  const scanMediaUrlById = new Map(scanMediaUrlEntries);
+  const listingByInstanceId = new Map(listings.map((l) => [l.instanceId, l]));
+  const wishlistedCardIds = new Set(wishlistEntries.flatMap((w) => (w.cardId ? [w.cardId] : [])));
+
+  const sourceByInstanceId = new Map<string, CollectionItem["acquisitionSource"]>();
+  for (const e of creationEvents) {
+    if (!e.instanceId) continue;
+    if (e.type === "CARD_SCANNED") sourceByInstanceId.set(e.instanceId, "Scanner");
+    else if (e.type === "IMPORT_COMPLETED") sourceByInstanceId.set(e.instanceId, "Import");
+    else if (e.type === "CARD_ADDED" && !sourceByInstanceId.has(e.instanceId)) sourceByInstanceId.set(e.instanceId, "Manual");
+  }
+
+  const groups = new Map<string, typeof instances>();
+  for (const inst of instances) {
+    const list = groups.get(inst.variantId) ?? [];
+    list.push(inst);
+    groups.set(inst.variantId, list);
+  }
+
+  const collection: CollectionItem[] = [];
+  for (const [variantId, group] of groups) {
+    const sorted = [...group].sort((a, b) => {
+      if (a.isGraded !== b.isGraded) return a.isGraded ? -1 : 1;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    const primary = sorted[0];
+    const card = primary.variant.card;
+    const price = toPriceDisplay(primary.variant.currentPrice);
+    const activeListing = group.map((i) => listingByInstanceId.get(i.id)).find(Boolean) ?? null;
+
+    collection.push({
+      variantId,
+      cardId: card.id,
+      cardName: card.name,
+      cardNumber: card.number,
+      setName: card.set.name,
+      franchiseName: card.set.series.franchise.name,
+      printingName: primary.variant.printing?.name ?? null,
+      parallelName: primary.variant.parallel?.name ?? null,
+      isFoil: primary.variant.isFoil,
+      images: cardImages.get(card.id) ?? [],
+      variantImages: variantImages.get(variantId) ?? [],
+      scanMediaUrl: primary.scanMediaId ? scanMediaUrlById.get(primary.scanMediaId) ?? null : null,
+      quantity: group.length,
+      primaryInstanceId: primary.id,
+      createdAt: primary.createdAt,
+      condition: primary.condition,
+      isGraded: primary.isGraded,
+      isFavorite: primary.isFavorite,
+      price,
+      purchasePrice: primary.purchasePrice,
+      acquisitionSource: sourceByInstanceId.get(primary.id) ?? "Unknown",
+      activeListingId: activeListing?.id ?? null,
+      isWishlisted: wishlistedCardIds.has(card.id),
+    });
+  }
+
+  // Not implied by Map iteration order once the graded-first tie-break can
+  // reorder a group's primary — sort explicitly so the grid shows the most
+  // recently added card first, the expected order for a Shelf.
+  collection.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  return collection;
 }
