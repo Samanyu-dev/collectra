@@ -1,10 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// "/" (the dashboard) is personal data too — added during implementation, not
-// in the ADR's original list, which only enumerated the sub-routes. Exact-match
-// only for "/" so it doesn't prefix-match every route in the app.
-const PROTECTED_PREFIXES = ["/", "/settings", "/shelf", "/vault", "/wishlist", "/projects", "/statistics", "/migration", "/admin", "/scan", "/marketplace/new", "/marketplace/selling"];
+// "/" used to be exact-matched here too (the dashboard is personal data), but
+// it's now a dual-purpose route — src/app/page.tsx itself branches on
+// getCurrentUser() and renders the public marketing homepage for signed-out
+// visitors, the dashboard for signed-in ones. Gating it here would redirect
+// signed-out visitors to /login before that branch ever runs.
+const PROTECTED_PREFIXES = ["/settings", "/shelf", "/vault", "/wishlist", "/projects", "/statistics", "/migration", "/admin", "/scan", "/marketplace/new", "/marketplace/selling"];
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 /**

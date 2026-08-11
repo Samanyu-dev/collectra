@@ -1,7 +1,9 @@
 import { getDashboardData } from '@/lib/intelligence/feed/dashboard-data';
 import { getCatalogWidgets } from '@/lib/intelligence/market/catalog-widgets';
-import { requireUser } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { timeAgo } from "@/lib/time-ago";
+import { prisma } from "@/lib/prisma";
+import { Homepage } from "@/components/marketing/homepage";
 import {
   TrendingUp, Activity, CheckCircle, ArrowRight, ShieldAlert, BadgeCent,
   Plus, Minus, Star, Shield, Heart, Upload, History, BarChart3,
@@ -33,17 +35,27 @@ const EVENT_META: Record<string, { label: string; icon: LucideIcon }> = {
   IMPORT_COMPLETED: { label: 'Imported', icon: Upload },
 };
 
-export default function IntelligenceOSHome() {
+export default async function IntelligenceOSHome() {
+  const user = await getCurrentUser();
+  if (!user) {
+    const [cards, variants, sets, franchises] = await Promise.all([
+      prisma.card.count(),
+      prisma.variant.count(),
+      prisma.set.count(),
+      prisma.franchise.count(),
+    ]);
+    return <Homepage stats={{ cards, variants, sets, franchises }} />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 md:p-8">
       {/* We use a React Server Component to fetch the feed data async */}
-      <IntelligenceFeed />
+      <IntelligenceFeed userId={user.id} />
     </div>
   );
 }
 
-async function IntelligenceFeed() {
-  const user = await requireUser();
+async function IntelligenceFeed({ userId }: { userId: string }) {
 
   const [
     {
@@ -61,7 +73,7 @@ async function IntelligenceFeed() {
       wishlistCount,
     },
     { gainers, losers, recentlyPriced, topValuable },
-  ] = await Promise.all([getDashboardData(user.id), getCatalogWidgets()]);
+  ] = await Promise.all([getDashboardData(userId), getCatalogWidgets()]);
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-12">

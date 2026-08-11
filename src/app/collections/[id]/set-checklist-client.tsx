@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from 'react';
 import { CardGrid, type CardGridCard } from '@/components/ui/card-grid';
 import { CollectionStats } from '@/components/ui/collection-stats';
 import { decrementVariantQuantity, incrementVariantQuantity } from '@/lib/actions/collection';
+import { PaywallModal } from '@/components/ui/paywall-modal';
+import { paywallMessageFor } from '@/lib/billing/paywall-messages';
 
 interface ChecklistCard extends CardGridCard {
   subtypes: string | null;
@@ -21,6 +23,7 @@ export function SetChecklistClient({
   releaseYear: number | null;
 }) {
   const [quantityOverrides, setQuantityOverrides] = useState<Record<string, number>>({});
+  const [paywallMessage, setPaywallMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   function variantQuantity(variant: CardGridCard['variants'][number]) {
@@ -65,8 +68,10 @@ export function SetChecklistClient({
     setQuantityOverrides((prev) => ({ ...prev, [variant.id]: next }));
     startTransition(() => {
       const action = delta === 1 ? incrementVariantQuantity : decrementVariantQuantity;
-      action(variant.id, { setId, cardId: card.id }).catch(() => {
+      action(variant.id, { setId, cardId: card.id }).catch((e) => {
         setQuantityOverrides((prev) => ({ ...prev, [variant.id]: current }));
+        const paywallMsg = paywallMessageFor(e);
+        if (paywallMsg) setPaywallMessage(paywallMsg);
       });
     });
   }
@@ -93,6 +98,7 @@ export function SetChecklistClient({
         <CollectionStats owned={ownedCount} total={effectiveCards.length} breakdown={breakdown} />
         <CardGrid initialCards={effectiveCards} onQuantityChange={handleQuantityChange} />
       </div>
+      {paywallMessage && <PaywallModal message={paywallMessage} onClose={() => setPaywallMessage(null)} />}
     </div>
   );
 }
