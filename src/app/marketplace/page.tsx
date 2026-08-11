@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { MarketplaceBrowseClient } from "./marketplace-browse-client";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export default async function MarketplacePage(
   const items = listings.map((l) => {
     const listingPhotos = imagesByCard.get(l.id) ?? [];
     const fallback = cardImages.get(l.instance.variant.card.id) ?? [];
-    const image = listingPhotos[0] ?? fallback.find((i) => i.type === "OFFICIAL_ARTWORK") ?? fallback[0];
+    const image = listingPhotos[0] ?? pickPrimaryImage(fallback) ?? fallback[0];
     return {
       id: l.id,
       cardName: l.instance.variant.card.name,

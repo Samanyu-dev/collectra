@@ -6,6 +6,7 @@ import { getPortfolioHistory, getPortfolioChangeToday, type PortfolioHistoryPoin
 import { getCatalogTotals } from "../market/catalog-widgets";
 import { groupEvents, type GroupedActivity } from "./activity";
 import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 
 export type { GroupedActivity };
 
@@ -290,7 +291,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       const low = cp.lowestListingUsd!;
       const high = cp.highestListingUsd!;
       const images = volatileImages.get(inst.variant.card.id) ?? [];
-      const imageUrl = images.find((img) => img.type === "THUMBNAIL")?.url ?? images.find((img) => img.type === "OFFICIAL_ARTWORK")?.url ?? null;
+      const imageUrl = pickPrimaryImage(images)?.url ?? null;
       return {
         cardId: inst.variant.card.id,
         cardName: inst.variant.card.name,

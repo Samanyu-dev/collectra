@@ -1,4 +1,5 @@
 import type { SimpleImage } from "./resolve";
+import { pickPrimaryImage } from "./pick-primary-image";
 
 export interface PickedImage {
   url: string | null;
@@ -27,13 +28,10 @@ export function pickInstanceImage(params: {
 
   if (scanMediaUrl) return { url: scanMediaUrl, isFallback: false, fallbackType: null };
 
-  const official =
-    cardImages.find((i) => i.type === "OFFICIAL_ARTWORK")?.url ?? cardImages.find((i) => i.type === "THUMBNAIL")?.url;
+  const official = pickPrimaryImage(cardImages)?.url;
   if (official) return { url: official, isFallback: false, fallbackType: null };
 
-  const variantArt =
-    variantImages.find((i) => i.type === "OFFICIAL_ARTWORK")?.url ??
-    variantImages.find((i) => i.type === "THUMBNAIL")?.url;
+  const variantArt = pickPrimaryImage(variantImages)?.url;
   if (variantArt) return { url: variantArt, isFallback: false, fallbackType: null };
 
   const crest = cardImages.find((i) => i.type === "TEAM_CREST")?.url;

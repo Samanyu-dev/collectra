@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { X, ExternalLink, TrendingUp, TrendingDown, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useFocusTrap } from '@/lib/use-focus-trap';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 
 interface DisplayCaseProps {
   instances: any[];
@@ -21,7 +22,7 @@ export function DisplayCase({ instances }: DisplayCaseProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10 perspective-1000">
         {instances.map((instance, index) => {
           const card = instance.variant.card;
-          const hqImage = card.images?.find((i:any) => i.type === 'OFFICIAL_ARTWORK')?.url || card.images?.find((i:any) => i.type === 'THUMBNAIL')?.url;
+          const hqImage = pickPrimaryImage(card.images)?.url;
           const isFoil = instance.variant.isFoil;
 
           return (
@@ -92,7 +93,7 @@ export function DisplayCase({ instances }: DisplayCaseProps) {
 // Separate component for the Modal to keep the file clean
 function InstanceModal({ instance, onClose }: { instance: any, onClose: () => void }) {
   const card = instance.variant.card;
-  const hqImage = card.images?.find((i:any) => i.type === 'OFFICIAL_ARTWORK')?.url || card.images?.find((i:any) => i.type === 'THUMBNAIL')?.url;
+  const hqImage = pickPrimaryImage(card.images)?.url;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -163,7 +164,12 @@ function InstanceModal({ instance, onClose }: { instance: any, onClose: () => vo
               {card.set.series.franchise.name} • {card.set.name}
             </p>
             <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-2">{card.name}</h2>
-            <p className="text-foreground/50 text-lg">{instance.variant.printing?.name} {instance.variant.parallel?.name}</p>
+            <p className="text-foreground/50 text-lg">
+              {/* "Base" (the near-universal default Printing) is redundant next to an actual parallel name — only shown when there's no parallel to pair it with. */}
+              {instance.variant.parallel?.name
+                ? [instance.variant.printing?.name?.toLowerCase() !== 'base' ? instance.variant.printing?.name : null, instance.variant.parallel.name].filter(Boolean).join(' ')
+                : instance.variant.printing?.name}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-6">

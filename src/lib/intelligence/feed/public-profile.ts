@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { getRarityTier, type RarityTier } from "@/lib/collection/classification";
 
 export interface PublicPullCard {
@@ -121,7 +122,7 @@ export async function getPublicProfileData(user: {
   const images = await getImagesForEntities("Card", pullCardIds);
   const imageFor = (cardId: string) => {
     const list = images.get(cardId) ?? [];
-    return list.find((img) => img.type === "THUMBNAIL")?.url ?? list.find((img) => img.type === "OFFICIAL_ARTWORK")?.url ?? null;
+    return pickPrimaryImage(list)?.url ?? null;
   };
 
   // Portfolio value + range — always computed; the page decides whether to show them.

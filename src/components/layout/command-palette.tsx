@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useFocusTrap } from '@/lib/use-focus-trap';
+import { pickPrimaryImage } from '@/lib/media/pick-primary-image';
 
 interface SearchResults {
   sets: any[];
@@ -235,7 +236,7 @@ export function CommandPalette() {
                 <ResultGroup label="Cards">
                   {results.cards.map((card) => {
                     const idx = nextIndex();
-                    const thumb = card.images?.find((i: any) => i.type === 'THUMBNAIL' || i.type === 'OFFICIAL_ARTWORK')?.url;
+                    const thumb = pickPrimaryImage(card.images)?.url;
                     return (
                       <ResultRow key={card.id} id={`cp-item-${card.id}`} index={idx} active={activeIndex === idx} onClick={() => navigate(flatItems[idx])} onMouseEnter={() => setActiveIndex(idx)}>
                         <div className="w-8 h-11 bg-foreground/5 shrink-0 rounded overflow-hidden relative border border-foreground/10">

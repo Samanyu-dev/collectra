@@ -7,25 +7,55 @@ import { storeScanPhoto, getScanPhotoBuffer } from "@/lib/scanner/storage";
 import { getOcrProvider, OcrNotConfiguredError } from "@/lib/scanner/ocr";
 import { identifyFromOcr, type ScanResult } from "@/lib/scanner/identify";
 import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { refreshVariantPrice } from "@/lib/actions/pricing";
 import { toPriceDisplay } from "@/lib/pricing/display";
 import type { PriceTagData } from "@/components/ui/price-tag";
+import { assertCanAddToSet, assertCanScan, checkRejectedScanAbuse } from "@/lib/billing/entitlements";
+
+/**
+ * The scan-quota / abuse-detection audit log lives on ScanAttempt, keyed by
+ * (userId, mediaId). identifyScan() opens the row (NO_MATCH or PENDING);
+ * confirmScanMatch()/rejectScanMatch() close the most recent PENDING one out
+ * to CONFIRMED/REJECTED. A quota only ever charges at CONFIRMED — see
+ * entitlements.ts's doc comments for why NO_MATCH/REJECTED are free.
+ */
+async function resolveScanAttempt(userId: string, mediaId: string, status: "CONFIRMED" | "REJECTED", variantId: string) {
+  const pending = await prisma.scanAttempt.findFirst({
+    where: { userId, mediaId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (pending) {
+    await prisma.scanAttempt.update({
+      where: { id: pending.id },
+      data: { status, matchedVariantId: variantId, resolvedAt: new Date() },
+    });
+  } else {
+    // No tracked PENDING row for this mediaId (e.g. confirm/reject called
+    // without a preceding identifyScan in this session) — still record it.
+    await prisma.scanAttempt.create({
+      data: { userId, mediaId, status, matchedVariantId: variantId, resolvedAt: new Date() },
+    });
+  }
+}
 
 /**
  * Step 1 of the scan pipeline (docs/adr/004-scanner-architecture.md §0):
  * stores the captured/uploaded photo as a real, private, per-user Media row
  * — same convention every other upload in this app uses (ADR 002 §6).
+ *
+ * userId-parameterized core, shared by the web Server Action below and the
+ * `/api/v1/scan` route (Bearer-token authenticated, no cookie session for
+ * requireUserForAction() to read) — see incrementVariantQuantityForUser's
+ * doc comment in collection.ts for why this split exists across scan/collection/migration.
  */
-export async function uploadScanPhoto(formData: FormData): Promise<{ mediaId: string; previewUrl: string }> {
-  const user = await requireUserForAction();
-
-  const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Please provide a photo to scan.");
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { key, url, checksum, provider } = await storeScanPhoto(user.id, file.name, buffer, file.type || "image/jpeg");
+export async function uploadScanPhotoForUser(
+  userId: string,
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string
+): Promise<{ mediaId: string; previewUrl: string }> {
+  const { key, url, checksum, provider } = await storeScanPhoto(userId, fileName, buffer, mimeType || "image/jpeg");
 
   const media = await prisma.media.upsert({
     where: { originalHash: checksum },
@@ -39,14 +69,26 @@ export async function uploadScanPhoto(formData: FormData): Promise<{ mediaId: st
       source: "USER_UPLOAD",
       sourceType: "USER_UPLOAD",
       license: "USER_UPLOAD",
-      uploadedByUserId: user.id,
+      uploadedByUserId: userId,
       verificationStatus: "PENDING",
-      mimeType: file.type || "image/jpeg",
-      filesize: file.size,
+      mimeType: mimeType || "image/jpeg",
+      filesize: buffer.byteLength,
     },
   });
 
   return { mediaId: media.id, previewUrl: url };
+}
+
+export async function uploadScanPhoto(formData: FormData): Promise<{ mediaId: string; previewUrl: string }> {
+  const user = await requireUserForAction();
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Please provide a photo to scan.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return uploadScanPhotoForUser(user.id, buffer, file.name, file.type || "image/jpeg");
 }
 
 export interface EnrichedCandidate {
@@ -75,10 +117,15 @@ async function enrichVariantIds(variantIds: string[]): Promise<Map<string, Enric
   const map = new Map<string, EnrichedCandidate>();
   for (const v of variants) {
     const images = imagesByCard.get(v.card.id) ?? [];
-    const image = images.find((i) => i.type === "OFFICIAL_ARTWORK") || images.find((i) => i.type === "THUMBNAIL");
+    const image = pickPrimaryImage(images);
     let cardName = v.card.name;
-    if (v.printing?.name || v.parallel?.name) {
-      cardName += ` (${[v.printing?.name, v.parallel?.name].filter(Boolean).join(" ")})`;
+    // "Base" is the near-universal default Printing and is redundant next
+    // to an actual parallel name — only shown when there's no parallel to
+    // pair it with.
+    const printingLabel = v.printing?.name && v.printing.name.toLowerCase() !== "base" ? v.printing.name : null;
+    const descriptor = v.parallel?.name ? [printingLabel, v.parallel.name].filter(Boolean).join(" ") : (printingLabel ?? v.printing?.name);
+    if (descriptor) {
+      cardName += ` (${descriptor})`;
     }
     map.set(v.id, {
       variantId: v.id,
@@ -102,8 +149,12 @@ async function enrichVariantIds(variantIds: string[]): Promise<Map<string, Enric
  * not treat as a generic failure (ADR 004 §3/§4).
  */
 export async function identifyScan(mediaId: string): Promise<IdentifyScanResponse> {
-  await requireUserForAction();
+  const user = await requireUserForAction();
+  return identifyScanForUser(user.id, mediaId);
+}
 
+/** userId-parameterized core — see uploadScanPhotoForUser's doc comment. */
+export async function identifyScanForUser(userId: string, mediaId: string): Promise<IdentifyScanResponse> {
   const media = await prisma.media.findUnique({ where: { id: mediaId } });
   if (!media) throw new Error("Scan photo not found");
 
@@ -129,6 +180,12 @@ export async function identifyScan(mediaId: string): Promise<IdentifyScanRespons
       return enriched ? { ...enriched, confidence: c.confidence } : null;
     })
     .filter((c): c is EnrichedCandidate => c != null);
+
+  // Free-tier scan quota only ever charges at CONFIRMED (see resolveScanAttempt) —
+  // a failed identification costs nothing, so this NO_MATCH row is pure audit trail.
+  await prisma.scanAttempt.create({
+    data: { userId, mediaId, status: resolved || candidates.length > 0 ? "PENDING" : "NO_MATCH" },
+  });
 
   return {
     ocrConfigured: true,
@@ -160,16 +217,33 @@ export async function confirmScanMatch(params: {
   contributeToPublicCatalog?: boolean;
 }): Promise<{ instanceId: string; price: PriceTagData | null }> {
   const user = await requireUserForAction();
+  return confirmScanMatchForUser(user.id, params);
+}
 
-  const variant = await prisma.variant.findUnique({ where: { id: params.variantId } });
+/** userId-parameterized core — see uploadScanPhotoForUser's doc comment. */
+export async function confirmScanMatchForUser(
+  userId: string,
+  params: {
+    mediaId: string;
+    variantId: string;
+    condition: string;
+    contributeToPublicCatalog?: boolean;
+  }
+): Promise<{ instanceId: string; price: PriceTagData | null }> {
+  const variant = await prisma.variant.findUnique({ where: { id: params.variantId }, include: { card: { select: { setId: true } } } });
   if (!variant) throw new Error("Variant not found");
 
   const media = await prisma.media.findUnique({ where: { id: params.mediaId } });
-  if (!media || media.uploadedByUserId !== user.id) throw new Error("Scan photo not found");
+  if (!media || media.uploadedByUserId !== userId) throw new Error("Scan photo not found");
+
+  // A scan-confirm both spends scan quota and adds to a (possibly new) set —
+  // both free-tier checks apply, same as the manual add-to-collection path.
+  await assertCanScan(userId);
+  await assertCanAddToSet(userId, variant.card.setId);
 
   const instance = await prisma.instance.create({
     data: {
-      userId: user.id,
+      userId,
       variantId: params.variantId,
       condition: params.condition,
       scanMediaId: params.mediaId,
@@ -178,12 +252,14 @@ export async function confirmScanMatch(params: {
 
   await prisma.event.create({
     data: {
-      userId: user.id,
+      userId,
       instanceId: instance.id,
       type: "CARD_SCANNED",
       metadata: JSON.stringify({ variantId: params.variantId, mediaId: params.mediaId }),
     },
   });
+  await resolveScanAttempt(userId, params.mediaId, "CONFIRMED", params.variantId);
+  await checkRejectedScanAbuse(userId, params.variantId);
 
   if (params.contributeToPublicCatalog) {
     // Makes the scan visible to getImagesForEntities("Card", ...) — i.e. a
@@ -200,7 +276,7 @@ export async function confirmScanMatch(params: {
         entityId: params.mediaId,
         payload: JSON.stringify({ promote: true }),
         status: "PENDING",
-        submittedByUserId: user.id,
+        submittedByUserId: userId,
       },
     });
   }
@@ -218,4 +294,23 @@ export async function confirmScanMatch(params: {
   revalidatePath("/shelf");
   revalidatePath("/scan");
   return { instanceId: instance.id, price: toPriceDisplay(priced) };
+}
+
+/**
+ * The user looked at a scan candidate and said "that's wrong" — costs
+ * nothing against the scan quota (see resolveScanAttempt/entitlements.ts).
+ * Recorded specifically so checkRejectedScanAbuse can catch the case where
+ * they then turn around and add this exact card another way.
+ */
+export async function rejectScanMatch(mediaId: string, variantId: string): Promise<void> {
+  const user = await requireUserForAction();
+  return rejectScanMatchForUser(user.id, mediaId, variantId);
+}
+
+/** userId-parameterized core — see uploadScanPhotoForUser's doc comment. */
+export async function rejectScanMatchForUser(userId: string, mediaId: string, variantId: string): Promise<void> {
+  const media = await prisma.media.findUnique({ where: { id: mediaId } });
+  if (!media || media.uploadedByUserId !== userId) throw new Error("Scan photo not found");
+
+  await resolveScanAttempt(userId, mediaId, "REJECTED", variantId);
 }

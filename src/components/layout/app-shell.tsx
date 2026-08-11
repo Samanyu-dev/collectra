@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext, createContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -161,7 +161,29 @@ export function FloatingDock() {
   );
 }
 
+/**
+ * Lets a page opt itself out of the floating in-app dock (see
+ * useHideFloatingDock below) — the pre-auth marketing homepage is the first
+ * user of this, since the dock's Scan/Collections/Shelf items make no sense
+ * before signing up. A context rather than a pathname check in AppShell
+ * itself: AppShell has no server-provided knowledge of auth state, and "/"
+ * renders different content for signed-in vs signed-out visitors — the page
+ * that actually knows which one it is opts out itself.
+ */
+const DockVisibilityContext = createContext<{ setHidden: (hidden: boolean) => void } | null>(null);
+
+/** Call from a page's top-level Client Component to hide the floating dock while it's mounted. */
+export function useHideFloatingDock() {
+  const ctx = useContext(DockVisibilityContext);
+  useEffect(() => {
+    ctx?.setHidden(true);
+    return () => ctx?.setHidden(false);
+  }, [ctx]);
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [dockHidden, setDockHidden] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-background">
       <a
@@ -170,17 +192,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
-      <main id="main-content" className="flex-1 min-h-screen relative overflow-hidden pointer-events-auto">
-        {children}
-      </main>
+      <DockVisibilityContext.Provider value={{ setHidden: setDockHidden }}>
+        <main id="main-content" className="flex-1 min-h-screen relative overflow-hidden pointer-events-auto">
+          {children}
+        </main>
 
-      {/*
-        A container for the dock that allows pointer events to pass through everywhere else.
-        The main content remains fully interactive behind the dock area.
-      */}
-      <div className="fixed inset-0 pointer-events-none z-50">
-        <FloatingDock />
-      </div>
+        {/*
+          A container for the dock that allows pointer events to pass through everywhere else.
+          The main content remains fully interactive behind the dock area.
+        */}
+        {!dockHidden && (
+          <div className="fixed inset-0 pointer-events-none z-50">
+            <FloatingDock />
+          </div>
+        )}
+      </DockVisibilityContext.Provider>
     </div>
   );
 }

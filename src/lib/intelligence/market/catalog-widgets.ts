@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { getSparklinesForVariants } from "@/lib/pricing/history";
 import { getRarityTier, getVariantCardType, type RarityTier } from "@/lib/collection/classification";
 
@@ -74,11 +75,7 @@ async function toCatalogCards(rows: PricedVariantRow[]): Promise<CatalogCard[]> 
     )
     .map((r) => {
       const images = imagesByCard.get(r.variant.card.id) ?? [];
-      const imageUrl =
-        images.find((img) => img.type === "THUMBNAIL")?.url ??
-        images.find((img) => img.type === "OFFICIAL_ARTWORK")?.url ??
-        images.find((img) => img.type === "TEAM_CREST")?.url ??
-        null;
+      const imageUrl = pickPrimaryImage(images)?.url ?? images.find((img) => img.type === "TEAM_CREST")?.url ?? null;
 
       return {
         variantId: r.variantId,
