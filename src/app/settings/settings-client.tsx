@@ -4,18 +4,29 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  User, Sun, Moon, Download, Upload, Shield, Layers, Heart, Target, Check, LogOut, Globe, Copy, DollarSign,
+  User, Sun, Moon, Download, Upload, Shield, Layers, Heart, Target, Check, LogOut, Globe, Copy, DollarSign, Sparkles, CreditCard,
 } from 'lucide-react';
 import { useTheme } from '@/components/ui/theme-toggle';
 import { exportUserData } from '@/lib/actions/export-data';
 import { signOut } from '@/lib/actions/auth';
 import { updateProfile } from '@/lib/actions/profile';
+import { ProgressBar } from '@/components/ui/collectra-ui';
+import { UpgradeButton, ManageBillingButton } from '@/components/billing/billing-actions';
 
 interface Stats {
   instanceCount: number;
   wishlistCount: number;
   activeProjectCount: number;
   migrationCount: number;
+}
+
+interface BillingInfo {
+  isPro: boolean;
+  setsUsed: number;
+  setLimit: number;
+  scansUsedThisWeek: number;
+  scanLimitPerWeek: number;
+  subscription: { status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean } | null;
 }
 
 interface ProfileFields {
@@ -47,7 +58,7 @@ function SettingsSection({ title, description, icon: Icon, children }: { title: 
   );
 }
 
-export function SettingsClient({ user, stats }: { user: ({ name: string | null; email: string } & ProfileFields) | null; stats: Stats }) {
+export function SettingsClient({ user, stats, billing }: { user: ({ name: string | null; email: string } & ProfileFields) | null; stats: Stats; billing: BillingInfo }) {
   const { isLight, mounted, setTheme } = useTheme();
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
@@ -135,6 +146,48 @@ export function SettingsClient({ user, stats }: { user: ({ name: string | null; 
         ) : (
           <p className="text-sm text-foreground/50">No user found.</p>
         )}
+      </SettingsSection>
+
+      <SettingsSection title="Billing" description={billing.isPro ? 'You have full Pro access.' : 'Free plan, upgrade anytime.'} icon={billing.isPro ? Sparkles : CreditCard}>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+              {billing.isPro && <Sparkles size={12} />} {billing.isPro ? 'Pro' : 'Free'}
+            </span>
+            {billing.isPro && billing.subscription && (
+              <span className="text-xs text-foreground/50">
+                {billing.subscription.cancelAtPeriodEnd
+                  ? `Cancels ${new Date(billing.subscription.currentPeriodEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : `Renews ${new Date(billing.subscription.currentPeriodEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}
+              </span>
+            )}
+          </div>
+
+          {!billing.isPro && (
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between text-xs text-foreground/50 mb-1.5">
+                  <span>Sets tracked</span>
+                  <span>{billing.setsUsed} / {billing.setLimit}</span>
+                </div>
+                <ProgressBar value={billing.setsUsed} max={billing.setLimit} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-xs text-foreground/50 mb-1.5">
+                  <span>Scans this week</span>
+                  <span>{billing.scansUsedThisWeek} / {billing.scanLimitPerWeek}</span>
+                </div>
+                <ProgressBar value={billing.scansUsedThisWeek} max={billing.scanLimitPerWeek} />
+              </div>
+            </div>
+          )}
+
+          {billing.isPro ? (
+            <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+          ) : (
+            <UpgradeButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50" />
+          )}
+        </div>
       </SettingsSection>
 
       <SettingsSection title="Appearance" description="Choose how Collectra looks on this device." icon={isLight ? Sun : Moon}>

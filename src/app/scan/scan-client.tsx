@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Upload, Loader2, Check, AlertTriangle, ArrowLeft, RotateCcw } from "lucide-react";
 import { uploadScanPhoto, identifyScan, confirmScanMatch, type EnrichedCandidate, type IdentifyScanResponse } from "@/lib/actions/scanner";
 import { PriceTag, type PriceTagData } from "@/components/ui/price-tag";
+import { paywallMessageFor } from "@/lib/billing/paywall-messages";
 
 type Step = "capture" | "uploading" | "identifying" | "results" | "confirming" | "success" | "error";
 
@@ -21,6 +22,7 @@ export function ScanClient() {
   const [condition, setCondition] = useState(CONDITIONS[1]);
   const [contributeToPublicCatalog, setContributeToPublicCatalog] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPaywallError, setIsPaywallError] = useState(false);
   const [priceData, setPriceData] = useState<PriceTagData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,12 +35,14 @@ export function ScanClient() {
     setCondition(CONDITIONS[1]);
     setContributeToPublicCatalog(false);
     setErrorMessage(null);
+    setIsPaywallError(false);
     setPriceData(null);
   }
 
   async function handleFileSelected(file: File) {
     setStep("uploading");
     setErrorMessage(null);
+    setIsPaywallError(false);
     try {
       const formData = new FormData();
       formData.append("photo", file);
@@ -63,12 +67,19 @@ export function ScanClient() {
   async function handleConfirm() {
     if (!mediaId || !selected) return;
     setStep("confirming");
+    setIsPaywallError(false);
     try {
       const { price } = await confirmScanMatch({ mediaId, variantId: selected.variantId, condition, contributeToPublicCatalog });
       setPriceData(price);
       setStep("success");
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "Couldn't add this card to your collection.");
+      const paywallMsg = paywallMessageFor(e);
+      if (paywallMsg) {
+        setErrorMessage(paywallMsg);
+        setIsPaywallError(true);
+      } else {
+        setErrorMessage(e instanceof Error ? e.message : "Couldn't add this card to your collection.");
+      }
       setStep("error");
     }
   }
@@ -214,11 +225,21 @@ export function ScanClient() {
 
           {step === "error" && (
             <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-12">
-              <AlertTriangle size={32} className="text-red-400" />
-              <p className="text-sm text-foreground/60 max-w-xs">{errorMessage}</p>
-              <button onClick={reset} className="px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-sm font-medium transition-colors">
-                Try again
-              </button>
+              <AlertTriangle size={32} className={isPaywallError ? "text-primary" : "text-red-400"} />
+              <div>
+                {isPaywallError && <p className="font-medium mb-1">Weekly scan limit reached</p>}
+                <p className="text-sm text-foreground/60 max-w-xs">{errorMessage}</p>
+              </div>
+              <div className="flex gap-3 mt-2">
+                {isPaywallError ? (
+                  <Link href="/pricing" className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold transition-colors">
+                    Upgrade to Pro
+                  </Link>
+                ) : null}
+                <button onClick={reset} className="px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-sm font-medium transition-colors">
+                  {isPaywallError ? "Not now" : "Try again"}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -46,7 +46,7 @@ export function MigrationReviewClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [committed, setCommitted] = useState<{ importedCount: number } | null>(null);
+  const [committed, setCommitted] = useState<{ importedCount: number; skippedForTierLimitCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function handleSelect(variantId: string) {
@@ -86,6 +86,13 @@ export function MigrationReviewClient({
           <p className="text-foreground/50">
             {committed ? `${committed.importedCount} cards were added to your collection.` : 'This import has already been committed.'}
           </p>
+          {committed && committed.skippedForTierLimitCount > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-sm text-foreground/70">
+              {committed.skippedForTierLimitCount} card{committed.skippedForTierLimitCount === 1 ? '' : 's'} from sets beyond your free-tier limit
+              {' '}weren&apos;t imported.{' '}
+              <Link href="/pricing" className="text-primary font-medium hover:underline">Upgrade to Pro</Link> to import the rest.
+            </div>
+          )}
           <Link href="/shelf" className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors">
             View Your Shelf
           </Link>

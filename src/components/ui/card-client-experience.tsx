@@ -8,7 +8,7 @@ import { VariantShelf } from './variant-shelf';
 import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Calendar, Users, Layers, Tag, PackageOpen, Check, Heart, Shield, Star, Share2, ChevronLeft, ChevronRight, Keyboard, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
-import { decrementVariantQuantity, incrementVariantQuantity, toggleFavorite, toggleVaulted } from '@/lib/actions/collection';
+import { decrementVariantQuantity, incrementVariantQuantity, toggleFavorite, toggleVaulted, updateInstanceSerialNumber } from '@/lib/actions/collection';
 import { toggleWishlist } from '@/lib/actions/wishlist';
 import { PriceTag } from './price-tag';
 import { ProgressBar } from './collectra-ui';
@@ -18,6 +18,62 @@ import { getVariantCardType, getVariantRarityLabel } from '@/lib/collection/clas
 import { toPriceDisplay } from '@/lib/pricing/display';
 import { PriceHistoryChart } from './price-history-chart';
 import { MarketComparison } from './market-comparison';
+import { GradedPriceHistoryChart } from './graded-price-history-chart';
+import { ShopWidget } from './shop-widget';
+import { PaywallModal } from './paywall-modal';
+import { paywallMessageFor } from '@/lib/billing/paywall-messages';
+
+function SerialNumberField({
+  instanceId,
+  serialTo,
+  initialValue,
+}: {
+  instanceId: string;
+  serialTo: number;
+  initialValue: string | null;
+}) {
+  const [value, setValue] = useState(initialValue ?? '');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [, startTransition] = useTransition();
+
+  function commit() {
+    const trimmed = value.trim();
+    if (trimmed === (initialValue ?? '')) return;
+    setStatus('saving');
+    startTransition(() => {
+      updateInstanceSerialNumber(instanceId, trimmed)
+        .then(() => {
+          setStatus('saved');
+          setTimeout(() => setStatus('idle'), 1500);
+        })
+        .catch(() => {
+          setValue(initialValue ?? '');
+          setStatus('idle');
+        });
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+        }}
+        placeholder="e.g. 63"
+        aria-label={`Serial number for this copy, out of ${serialTo}`}
+        className="w-20 bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-sm font-mono text-center focus:outline-none focus:ring-2 focus:ring-primary/50"
+      />
+      <span className="text-foreground/40 text-sm font-mono">/ {serialTo}</span>
+      {status === 'saving' && <span className="text-[10px] text-foreground/35 font-mono">saving…</span>}
+      {status === 'saved' && <span className="text-[10px] text-green-400 font-mono">saved</span>}
+    </div>
+  );
+}
 
 interface RelatedCard {
   id: string;
@@ -37,16 +93,32 @@ interface PriceHistoryJson {
   observationCount: number;
 }
 
+interface GradedPriceHistoryJson {
+  companies: string[];
+  series: { company: string; grade: string; label: string; points: { date: string; priceUsd: number }[]; latestPriceUsd: number | null }[];
+  observationCount: number;
+  lastUpdated: string | null;
+}
+
+interface ShopLinks {
+  tcgplayerUrl?: string | null;
+  cardmarketUrl?: string | null;
+  isJapaneseExclusive?: boolean;
+}
+
 interface CardClientExperienceProps {
   card: any; // Deep, page-specific Prisma include shape — not worth a dedicated type
   topVariantId: string;
   relatedCards?: RelatedCard[];
   priceHistoryByVariant?: Record<string, PriceHistoryJson>;
+  gradedPriceHistoryByVariant?: Record<string, GradedPriceHistoryJson>;
+  shopLinks?: ShopLinks;
 }
 
-export function CardClientExperience({ card, topVariantId, relatedCards = [], priceHistoryByVariant = {} }: CardClientExperienceProps) {
+export function CardClientExperience({ card, topVariantId, relatedCards = [], priceHistoryByVariant = {}, gradedPriceHistoryByVariant = {}, shopLinks }: CardClientExperienceProps) {
   const [activeVariantId, setActiveVariantId] = useState(topVariantId);
   const [priceHistoryRange, setPriceHistoryRange] = useState<"7d" | "30d" | "90d" | "all">("90d");
+  const [gradedPriceHistoryRange, setGradedPriceHistoryRange] = useState<"7d" | "30d" | "90d" | "all">("90d");
   const [quantityByVariant, setQuantityByVariant] = useState<Record<string, number>>(() =>
     Object.fromEntries(card.variants.map((v: any) => [v.id, v.ownedQuantity ?? 0]))
   );
@@ -58,6 +130,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
     Object.fromEntries(card.variants.map((v: any) => [v.id, !!v.favorited]))
   );
   const [copied, setCopied] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   async function handleShare() {
@@ -84,8 +157,10 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
     const next = current + 1;
     setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: next }));
     startTransition(() => {
-      incrementVariantQuantity(activeVariantId, { setId: card.setId, cardId: card.id }).catch(() => {
+      incrementVariantQuantity(activeVariantId, { setId: card.setId, cardId: card.id }).catch((e) => {
         setQuantityByVariant((prev) => ({ ...prev, [activeVariantId]: current }));
+        const paywallMsg = paywallMessageFor(e);
+        if (paywallMsg) setPaywallMessage(paywallMsg);
       });
     });
   }
@@ -148,12 +223,21 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
 
   // Map variants for the shelf
   const shelfVariants = card.variants.map((v: any) => {
-    // Determine the name based on printing/parallel
+    // Determine the name based on printing/parallel. "Base" is the
+    // near-universal default Printing across the catalog and conveys
+    // nothing on its own — prefixing every parallel's label with it (e.g.
+    // "Base Glitter Holiday") reads as if the card were plain base, which
+    // is exactly backwards for what's usually the rarer, more interesting
+    // variant. Only a genuinely meaningful Printing (e.g. "1st Edition")
+    // gets prepended — matches the same exclusion getVariantCardType()
+    // already applies, just missing here until now (2026-08-07, found via
+    // a real user report on this set's Glitter Holiday parallels).
+    const meaningfulPrinting = v.printing?.name && v.printing.name.toLowerCase() !== "base" ? v.printing.name : null;
     let name = getVariantCardType(v);
     if (v.insert?.name && v.parallel?.name) name = `${v.insert.name} · ${v.parallel.name}`;
-    else if (v.printing?.name && v.parallel?.name) name = `${v.printing.name} ${v.parallel.name}`;
-    else if (v.printing?.name) name = v.printing.name;
+    else if (meaningfulPrinting && v.parallel?.name) name = `${meaningfulPrinting} ${v.parallel.name}`;
     else if (v.parallel?.name) name = v.parallel.name;
+    else if (meaningfulPrinting) name = meaningfulPrinting;
     
     return {
       id: v.id,
@@ -253,144 +337,167 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
 
       {/* 2. Massive Hero Section */}
       <main className="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-12 pt-32 pb-20">
-        <div className="flex flex-col lg:flex-row items-center lg:items-start gap-12 lg:gap-24">
-          
-          {/* Deep Zoom Image */}
-          <div className="flex-shrink-0">
-            {hqImage ? (
-              <CardDeepZoom imageUrl={hqImage} name={card.name} />
-            ) : crestImage ? (
-              <div className="relative w-64 md:w-80 aspect-[63/88] rounded-2xl overflow-hidden bg-gradient-to-b from-foreground/10 to-background/40 border border-foreground/10 shadow-2xl flex flex-col items-center justify-center gap-4 p-8">
-                <div className="relative w-2/3 aspect-square drop-shadow-2xl">
-                  <Image src={crestImage} alt={card.name} fill className="object-contain" />
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-12 xl:gap-16 items-start">
+
+          {/* Main column: image + title */}
+          <div className="flex flex-col lg:flex-row items-center lg:items-start gap-12 lg:gap-16">
+
+            {/* Deep Zoom Image */}
+            <div className="flex-shrink-0">
+              {hqImage ? (
+                <CardDeepZoom imageUrl={hqImage} name={card.name} />
+              ) : crestImage ? (
+                <div className="relative w-64 md:w-80 aspect-[63/88] rounded-2xl overflow-hidden bg-gradient-to-b from-foreground/10 to-background/40 border border-foreground/10 shadow-2xl flex flex-col items-center justify-center gap-4 p-8">
+                  <div className="relative w-2/3 aspect-square drop-shadow-2xl">
+                    <Image src={crestImage} alt={card.name} fill className="object-contain" />
+                  </div>
+                  <span className="text-foreground/40 text-xs font-mono uppercase tracking-widest text-center">{card.name}</span>
                 </div>
-                <span className="text-foreground/40 text-xs font-mono uppercase tracking-widest text-center">{card.name}</span>
-              </div>
-            ) : (
-              <div className="w-64 md:w-80 aspect-[63/88] rounded-2xl bg-foreground/5 border border-foreground/10 flex items-center justify-center">
-                <span className="text-foreground/30 text-sm">{card.name}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Core Title & Typography */}
-          <div className="flex-1 space-y-8 text-center lg:text-left mt-8 lg:mt-16">
-            <div className="space-y-2">
-              <p className="text-primary font-mono text-sm tracking-widest uppercase">
-                {card.set.series.franchise.name} • {card.set.name} • #{card.number}
-              </p>
-              <h1 className="text-6xl md:text-8xl font-display font-bold tracking-tight text-foreground drop-shadow-2xl">
-                {card.name}
-              </h1>
-            </div>
-
-            {/* Collection Actions */}
-            <div className="flex items-center justify-center lg:justify-start gap-3">
-              <QuantityControl
-                quantity={activeQuantity}
-                onIncrement={handleIncrementQuantity}
-                onDecrement={handleDecrementQuantity}
-              />
-
-              <motion.button
-                type="button"
-                onClick={handleToggleWishlist}
-                whileTap={{ scale: 0.9 }}
-                title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
-                  wishlisted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
-                }`}
-              >
-                <Heart size={18} className={wishlisted ? 'fill-current' : ''} />
-              </motion.button>
-
-              {owned && (
-                <motion.button
-                  type="button"
-                  onClick={handleToggleVaulted}
-                  whileTap={{ scale: 0.9 }}
-                  title={vaulted ? 'Remove from vault' : 'Move to vault'}
-                  className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
-                    vaulted ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
-                  }`}
-                >
-                  <Shield size={18} className={vaulted ? 'fill-current' : ''} />
-                </motion.button>
+              ) : (
+                <div className="w-64 md:w-80 aspect-[63/88] rounded-2xl bg-foreground/5 border border-foreground/10 flex items-center justify-center">
+                  <span className="text-foreground/30 text-sm">{card.name}</span>
+                </div>
               )}
-
-              {owned && (
-                <motion.button
-                  type="button"
-                  onClick={handleToggleFavorite}
-                  whileTap={{ scale: 0.9 }}
-                  title={favorited ? 'Remove favorite' : 'Mark as favorite'}
-                  className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
-                    favorited ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
-                  }`}
-                >
-                  <Star size={18} className={favorited ? 'fill-current' : ''} />
-                </motion.button>
-              )}
-
-              <motion.button
-                type="button"
-                onClick={handleShare}
-                whileTap={{ scale: 0.9 }}
-                title={copied ? 'Link copied' : 'Share this card'}
-                aria-label={copied ? 'Link copied to clipboard' : 'Share this card'}
-                className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
-                  copied ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
-                }`}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  {copied ? (
-                    <motion.span key="copied" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <Check size={18} strokeWidth={3} />
-                    </motion.span>
-                  ) : (
-                    <motion.span key="share" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <Share2 size={18} />
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
             </div>
 
-            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-6 font-mono text-foreground/50 text-sm">
-              <div className="flex items-center gap-2">
-                <Users size={16} />
-                <span>{card.persons?.map((p:any)=>p.name).join(', ') || card.teams?.map((t:any)=>t.name).join(', ') || 'No person/team data'}</span>
+            {/* Core Title & Typography */}
+            <div className="flex-1 space-y-8 text-center lg:text-left mt-8 lg:mt-16">
+              <div className="space-y-2">
+                <p className="text-primary font-mono text-sm tracking-widest uppercase">
+                  {card.set.series.franchise.name} • {card.set.name} • #{card.number}
+                </p>
+                <h1 className="text-6xl md:text-8xl font-display font-bold tracking-tight text-foreground drop-shadow-2xl">
+                  {card.name}
+                </h1>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={16} />
-                <span>{card.set.season?.label || 'Unknown Season'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Layers size={16} />
-                <span>{activeRarityLabel}</span>
-              </div>
-            </div>
 
-            {/* Active Variant Price Highlight */}
-            <div className="pt-8 border-t border-foreground/10">
-              <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-2">Market Value ({activeVariantLabel})</p>
-              <PriceTag data={toPriceDisplay(activeVariant.currentPrice)} />
-              <div className="mt-5 grid grid-cols-3 gap-2 max-w-md mx-auto lg:mx-0">
-                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Owned</p>
-                  <p className="mt-1 text-xl font-display font-bold">{activeQuantity}</p>
+              <div className="flex flex-wrap justify-center lg:justify-start items-center gap-6 font-mono text-foreground/50 text-sm">
+                <div className="flex items-center gap-2">
+                  <Users size={16} />
+                  <span>{card.persons?.map((p:any)=>p.name).join(', ') || card.teams?.map((t:any)=>t.name).join(', ') || 'No person/team data'}</span>
                 </div>
-                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Spares</p>
-                  <p className="mt-1 text-xl font-display font-bold">{spares}</p>
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} />
+                  <span>{card.set.season?.label || 'Unknown Season'}</span>
                 </div>
-                <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Listings</p>
-                  <p className="mt-1 text-xl font-display font-bold">{activeVariant.activeListings?.length ?? 0}</p>
+                <div className="flex items-center gap-2">
+                  <Layers size={16} />
+                  <span>{activeRarityLabel}</span>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Right rail: "Adding to" collection panel + Shop */}
+          <aside className="w-full xl:sticky xl:top-28 xl:self-start space-y-4">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-5">
+              <div>
+                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest">Adding to</p>
+                <p className="text-sm font-medium mt-0.5">Your Collection</p>
+              </div>
+
+              {/* Collection Actions */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <QuantityControl
+                  quantity={activeQuantity}
+                  onIncrement={handleIncrementQuantity}
+                  onDecrement={handleDecrementQuantity}
+                />
+
+                <motion.button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  whileTap={{ scale: 0.9 }}
+                  title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
+                    wishlisted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
+                  }`}
+                >
+                  <Heart size={18} className={wishlisted ? 'fill-current' : ''} />
+                </motion.button>
+
+                {owned && (
+                  <motion.button
+                    type="button"
+                    onClick={handleToggleVaulted}
+                    whileTap={{ scale: 0.9 }}
+                    title={vaulted ? 'Remove from vault' : 'Move to vault'}
+                    className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
+                      vaulted ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
+                    }`}
+                  >
+                    <Shield size={18} className={vaulted ? 'fill-current' : ''} />
+                  </motion.button>
+                )}
+
+                {owned && (
+                  <motion.button
+                    type="button"
+                    onClick={handleToggleFavorite}
+                    whileTap={{ scale: 0.9 }}
+                    title={favorited ? 'Remove favorite' : 'Mark as favorite'}
+                    className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
+                      favorited ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
+                    }`}
+                  >
+                    <Star size={18} className={favorited ? 'fill-current' : ''} />
+                  </motion.button>
+                )}
+
+                <motion.button
+                  type="button"
+                  onClick={handleShare}
+                  whileTap={{ scale: 0.9 }}
+                  title={copied ? 'Link copied' : 'Share this card'}
+                  aria-label={copied ? 'Link copied to clipboard' : 'Share this card'}
+                  className={`w-12 h-12 flex items-center justify-center rounded-full border transition-colors ${
+                    copied ? 'bg-green-500/20 border-green-500/40 text-green-400' : 'bg-foreground/10 border-foreground/20 text-foreground/60 hover:text-foreground hover:bg-foreground/20'
+                  }`}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {copied ? (
+                      <motion.span key="copied" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                        <Check size={18} strokeWidth={3} />
+                      </motion.span>
+                    ) : (
+                      <motion.span key="share" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                        <Share2 size={18} />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </div>
+
+              {/* Active Variant Price Highlight */}
+              <div className="pt-5 border-t border-foreground/10">
+                <p className="text-foreground/40 text-xs font-mono uppercase tracking-widest mb-2">Market Value ({activeVariantLabel})</p>
+                <PriceTag data={toPriceDisplay(activeVariant.currentPrice)} />
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Owned</p>
+                    <p className="mt-1 text-xl font-display font-bold">{activeQuantity}</p>
+                  </div>
+                  <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Spares</p>
+                    <p className="mt-1 text-xl font-display font-bold">{spares}</p>
+                  </div>
+                  <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-foreground/35">Listings</p>
+                    <p className="mt-1 text-xl font-display font-bold">{activeVariant.activeListings?.length ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ShopWidget
+              cardName={card.name}
+              cardNumber={card.number}
+              setName={card.set.name}
+              tcgplayerUrl={shopLinks?.tcgplayerUrl}
+              cardmarketUrl={shopLinks?.cardmarketUrl}
+              isJapaneseExclusive={shopLinks?.isJapaneseExclusive}
+            />
+          </aside>
 
         </div>
       </main>
@@ -435,6 +542,27 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
               <p className="mt-2 text-lg font-semibold">{wishlisted ? 'Tracking' : 'Not tracked'}</p>
             </div>
           </div>
+
+          {activeVariant.serialTo && owned && (
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-3">
+              <h4 className="text-sm font-semibold">Your Copies — Serial Number</h4>
+              <p className="text-xs text-foreground/45">
+                This variant is numbered /{activeVariant.serialTo}. Record which print each of your copies is.
+              </p>
+              <div className="space-y-2 pt-1">
+                {(activeVariant.ownedInstances ?? []).map((inst: any, idx: number) => (
+                  <div key={inst.instanceId} className="flex items-center gap-3">
+                    <span className="text-xs text-foreground/40 font-mono w-14 shrink-0">Copy {idx + 1}</span>
+                    <SerialNumberField
+                      instanceId={inst.instanceId}
+                      serialTo={activeVariant.serialTo}
+                      initialValue={inst.serialNumber}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-5 space-y-3">
             <div className="flex items-center justify-between gap-4">
@@ -527,6 +655,16 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
               currentPrice={activeVariant.currentPrice?.marketPriceUsd ?? null}
             />
           </div>
+          {/* Only rendered when this variant actually has graded observations — GradedPriceHistoryChart
+              itself also guards on empty series, but skipping the fetch/render here avoids an
+              empty-looking card for the vast majority of variants that were never graded. */}
+          {gradedPriceHistoryByVariant[activeVariantId]?.series?.length > 0 && (
+            <GradedPriceHistoryChart
+              data={gradedPriceHistoryByVariant[activeVariantId] as any}
+              onRangeChange={setGradedPriceHistoryRange}
+              activeRange={gradedPriceHistoryRange}
+            />
+          )}
         </div>
 
           {/* Found In / Related Products */}
@@ -651,6 +789,7 @@ export function CardClientExperience({ card, topVariantId, relatedCards = [], pr
           </div>
 
       </section>
+      {paywallMessage && <PaywallModal message={paywallMessage} onClose={() => setPaywallMessage(null)} />}
     </div>
   );
 }
