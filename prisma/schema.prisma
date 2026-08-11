@@ -133,6 +133,11 @@ model Product {
   weightEvidenceId String?
   weightEvidence   Evidence? @relation("ProductWeightEvidence", fields: [weightEvidenceId], references: [id])
 
+  // The announced launch MSRP (e.g. $159.99 hobby box) — distinct from
+  // currentPrice/priceObservations below, which track live secondary-market
+  // price for a sealed unit, not what Topps originally charged for it.
+  msrpUsd Float?
+
   // Components make up a Product
   components ProductComponent[]
 
@@ -232,6 +237,11 @@ model Card {
   // Live Data Pipeline
   checksum     String?
   lastSyncedAt DateTime?
+
+  // /cards browse sorts by name on a 32k+ row table with no other filter in
+  // the common case — confirmed via EXPLAIN ANALYZE to be a full Seq Scan +
+  // Sort without this (2026-08-06 performance investigation).
+  @@index([name])
 }
 
 model Printing {
@@ -241,8 +251,24 @@ model Printing {
 }
 
 model Parallel {
-  id       String    @id @default(cuid())
-  name     String    @unique // e.g., Gold Refractor, Reverse Holo, Silver
+  id   String @id @default(cuid())
+  name String @unique // display name, e.g. "Mini Diamond - Gold", "Pink Rainbow Foil" — composed from finish+color below, but still its own unique string since this is a single global namespace (the same finish+color pair can't collide within one set, but nothing stops two different sets from independently defining, say, "Gold")
+
+  // The technique/ladder name (e.g. "Mini Diamond", "Sparkles", "Rainbow
+  // Foil", "Mirror Foil", "Chrome King Refractor") — the axis that's
+  // independent of color. Deliberately not split further into separate
+  // Printing Technology/Surface Finish/Card Material columns, since neither
+  // product this field was introduced for documents those as distinct
+  // concepts; Variant.notes covers rarer one-off facts instead.
+  finish String?
+
+  // The border/accent color axis, independent of finish (e.g. "Pink", "Gold",
+  // "Aqua") — decomposed from finish per 2026-08-07 correction: a card
+  // described as "Pink Rainbow Foil" is finish="Rainbow Foil" + color="Pink",
+  // not a one-off named variant. This is what makes a later "Green Rainbow"
+  // or "Blue Mirror" a new combination of existing values, not a new type.
+  color String?
+
   variants Variant[]
 }
 
@@ -269,6 +295,11 @@ model Variant {
   isRelic  Boolean @default(false) // a plain jersey-swatch relic isn't necessarily a "patch" (a specific higher-end relic sub-type) — no flag existed for the general case until now
   serialTo Int? // e.g. 50 (for /50) — the catalog-level print-run denominator; NOT the individual number stamped on one physical copy (see Instance.serialNumber)
 
+  // Free-text catch-all for a documented fact that doesn't fit a structured
+  // column (e.g. "Jumbo-exclusive, UK-printed" on an India-market card) —
+  // deliberately not given dedicated columns per-concept; see Parallel.finish.
+  notes String?
+
   instances      Instance[]
   populations    Population[]
   projectTargets ProjectTarget[]
@@ -276,8 +307,14 @@ model Variant {
   possibleIn     PossiblePull[]
   wishlistedBy   Wishlist[]
 
-  priceObservations PriceObservation[]
-  currentPrice      CurrentPrice?
+  priceObservations       PriceObservation[]
+  currentPrice            CurrentPrice?
+  gradedPriceObservations GradedPriceObservation[]
+
+  // Every card-list page fans out to "variants for these N cardIds" — confirmed
+  // via EXPLAIN ANALYZE to be a full Seq Scan over all 92k+ rows without this
+  // (2026-08-06 performance investigation).
+  @@index([cardId])
 }
 
 // ==========================================
@@ -500,22 +537,35 @@ model Instance {
 }
 
 model User {
-  id            String    @id // no @default — must equal auth.users.id (see docs/adr/002)
-  email         String    @unique
-  name          String?
-  username      String?   @unique
-  usernameSetAt DateTime?
-  avatarUrl     String?
-  bio           String?
-  isPublic      Boolean   @default(false)
+  id                String    @id // no @default — must equal auth.users.id (see docs/adr/002)
+  email             String    @unique
+  name              String?
+  username          String?   @unique
+  usernameSetAt     DateTime?
+  avatarUrl         String?
+  bio               String?
+  isPublic          Boolean   @default(false)
   // Independent of isPublic — isPublic controls whether /u/[username] exists
   // at all; this controls whether dollar amounts render on it. Defaults to
   // false even when isPublic is true — an explicit second opt-in, not
   // implied by making the profile public.
-  showValuePublicly Boolean @default(false)
-  role          String    @default("USER") // USER | MODERATOR | CURATOR | ADMIN
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  showValuePublicly Boolean   @default(false)
+  role              String    @default("USER") // USER | MODERATOR | CURATOR | ADMIN — ADMIN also bypasses all billing entitlements, see lib/billing/entitlements.ts
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  // Billing — Stripe is the source of truth for subscription state;
+  // stripeCustomerId is the join key back to it and is set the first time
+  // this user starts a Checkout Session.
+  stripeCustomerId  String?   @unique
+  subscription      Subscription?
+
+  // Scan-abuse guard: incremented when a user rejects a scan match and then
+  // adds that exact card another way (see checkRejectedScanAbuse). 3 strikes
+  // sets bannedAt, which requireUserForAction()/requireUser() enforce everywhere.
+  scanAbuseWarnings Int       @default(0)
+  bannedAt          DateTime?
+  scanAttempts      ScanAttempt[]
 
   instances              Instance[]
   events                 Event[]
@@ -531,6 +581,41 @@ model User {
   listings               Listing[]          @relation("ListingSeller")
   reservedListings       Listing[]          @relation("ListingReservedBy")
   listingInquiriesSent   ListingInquiry[]   @relation("ListingInquiryBuyer")
+}
+
+// ==========================================
+// 8b. BILLING & SCAN QUOTA
+// ==========================================
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id])
+  stripeSubscriptionId String   @unique
+  stripePriceId        String
+  status               String // active | trialing | past_due | canceled | incomplete | unpaid — mirrors Stripe's subscription.status verbatim
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+}
+
+// Audit log for the scanner pipeline (docs/adr/004-scanner-architecture.md) —
+// drives both the free-tier weekly scan quota (count of CONFIRMED rows in a
+// trailing 7-day window) and the reject-then-manually-add abuse check. A
+// "scan" only ever costs quota at CONFIRMED — NO_MATCH and REJECTED are free,
+// so there's nothing to "refund," only something that was never charged.
+model ScanAttempt {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  mediaId          String
+  status           String // NO_MATCH | PENDING | CONFIRMED | REJECTED
+  matchedVariantId String?
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  @@index([userId, status, createdAt])
 }
 
 // ==========================================
@@ -651,9 +736,10 @@ model DataSource {
   // from the beginning, which is the correct behavior for both cases.
   syncCursor String?
 
-  media             Media[]
-  priceObservations PriceObservation[]
-  rateLimits        SourceRateLimit[]
+  media                   Media[]
+  priceObservations       PriceObservation[]
+  gradedPriceObservations GradedPriceObservation[]
+  rateLimits              SourceRateLimit[]
 }
 
 model Contribution {
@@ -912,6 +998,39 @@ model CurrentPrice {
   confidence          Float     @default(0) // 0–1, see ADR §8
   confidenceLabel     String    @default("NO_DATA") // HIGH | MEDIUM | LOW | NO_DATA
   computedAt          DateTime  @updatedAt // job-run time, not data freshness
+}
+
+// Catalog-level graded reference prices (e.g. "PSA 10 copies of this card trade
+// around $659") — deliberately separate from PriceObservation/CurrentPrice rather
+// than a nullable grade column on those, so the existing ungraded pipeline (ADR-003,
+// recompute job, eBay/Pokémon syncs) stays untouched. Grading elsewhere in the schema
+// (Certification/Population) is always about one owned physical card; this is the
+// catalog-wide "what does a PSA 10 of this generally sell for" lookup that nothing
+// else models. No derived "current price by grade" cache table (unlike CurrentPrice)
+// — per-variant row counts are modest enough that a chart just reads the raw series,
+// and a read-side cache (unstable_cache) covers repeat-request cost instead.
+model GradedPriceObservation {
+  id        String  @id @default(cuid())
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  company String // PSA | BGS | CGC | TAG | ACE | ARS | AGS ... — data-driven, not an enum
+  grade   String // display label, e.g. "10", "9.5 Black Label"
+
+  price    Float // in original currency, unmodified
+  currency String // ISO 4217 as reported by the source
+  priceUsd Float // normalized at write time via normalizeToUsd(), same as PriceObservation
+
+  sourceId    String
+  source      DataSource @relation(fields: [sourceId], references: [id])
+  sourceUrl   String?
+  externalRef String? // source's product_id + grade_id, for dedup on re-scrape
+
+  observedAt DateTime // when the source says this was true
+  createdAt  DateTime @default(now()) // when Collectra ingested it
+
+  @@index([variantId, company, grade, observedAt])
+  @@index([sourceId, externalRef])
 }
 
 // Not a live-rate-API integration — a small table refreshed at whatever cadence

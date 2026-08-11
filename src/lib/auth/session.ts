@@ -16,7 +16,7 @@ const LEGACY_USER_ID = "user_1";
  * account except the one legacy account, and safe to retry if interrupted —
  * nothing commits until the whole reassignment succeeds.
  */
-async function migrateLegacyDataIfNeeded(realUserId: string, email: string) {
+export async function migrateLegacyDataIfNeeded(realUserId: string, email: string) {
   const legacy = await prisma.user.findFirst({
     where: { id: LEGACY_USER_ID, email },
   });
@@ -73,12 +73,19 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.bannedAt) redirect("/banned");
   return user;
 }
 
-/** For Server Actions: throws rather than redirecting — the caller decides how to surface it. */
+/**
+ * For Server Actions: throws rather than redirecting — the caller decides how
+ * to surface it. A banned account (3 confirmed scan-quota-abuse strikes, see
+ * checkRejectedScanAbuse in lib/billing/entitlements.ts) is blocked from every
+ * mutation here, in the one place that already gates all of them.
+ */
 export async function requireUserForAction(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
+  if (user.bannedAt) throw new Error("This account has been suspended.");
   return user;
 }
