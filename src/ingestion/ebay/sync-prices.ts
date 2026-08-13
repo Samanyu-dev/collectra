@@ -66,6 +66,23 @@ export function dropGrossOutliers(prices: number[]): number[] {
   return prices.filter((p) => p / med < 3 && med / p < 3);
 }
 
+// Pair-preserving version of dropGrossOutliers — every call site zips the
+// surviving prices back up with the item they came from (for sourceUrl/
+// externalRef) by array index. Filtering `prices` and `items` separately and
+// re-zipping by index after the fact is wrong the moment any element gets
+// dropped: everything after the drop shifts, so price[i] ends up paired with
+// the wrong item — a real bug found 2026-08-13 auditing a Chrome Marvel 2026
+// price that looked way too high; the $ figure itself was a genuine price
+// from *some* surviving listing, just written under a different listing's
+// URL/itemId. Operating on {item, price} pairs from the start keeps them
+// correctly attached through both the finite/positive filter and the
+// outlier drop, no matter what gets removed or in what order.
+export function dropGrossOutlierPairs<T>(pairs: Array<{ item: T; price: number }>): Array<{ item: T; price: number }> {
+  const med = median(pairs.map((p) => p.price));
+  if (med == null || med === 0) return pairs;
+  return pairs.filter((p) => p.price / med < 3 && med / p.price < 3);
+}
+
 interface QueryTarget {
   variantId: string;
   query: string;
@@ -125,18 +142,21 @@ export async function syncEbayPricesForVariants(variantIds: string[]): Promise<S
           !isLikelyGraded(it.title) &&
           titleMatchesCard(it.title, target.cardName, target.cardNumber, target.setName)
       );
-      const rawPrices = usdItems.map((it) => Number(it.price!.value)).filter((v) => Number.isFinite(v) && v > 0);
-      const cleanPrices = dropGrossOutliers(rawPrices).slice(0, MAX_OBSERVATIONS_PER_VARIANT);
+      const pricedItems = usdItems
+        .map((item) => ({ item, price: Number(item.price!.value) }))
+        .filter((p) => Number.isFinite(p.price) && p.price > 0);
+      const cleanPairs = dropGrossOutlierPairs(pricedItems).slice(0, MAX_OBSERVATIONS_PER_VARIANT);
+      const cleanPrices = cleanPairs.map((p) => p.price);
 
       const now = new Date();
-      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPrices.map((price, idx) => ({
+      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPairs.map(({ price, item }) => ({
         variantId: target.variantId,
         kind: "LISTING",
         price,
         currency: "USD",
         observedAt: now,
-        sourceUrl: usdItems[idx]?.itemWebUrl ?? undefined,
-        externalRef: usdItems[idx]?.itemId,
+        sourceUrl: item.itemWebUrl ?? undefined,
+        externalRef: item.itemId,
         sourceId,
       }));
 

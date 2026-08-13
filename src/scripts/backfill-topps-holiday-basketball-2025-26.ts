@@ -36,7 +36,7 @@ loadEnvConfig(process.cwd());
 import { getOrCreateDataSource, attachHotlinkImage } from "../ingestion/engine/media";
 import { processMediaRow } from "../ingestion/engine/process-media";
 import { searchItems, isLikelyBulkListing, isLikelyGraded, titleMatchesCard } from "../ingestion/ebay/api-client";
-import { dropGrossOutliers } from "../ingestion/ebay/sync-prices";
+import { dropGrossOutlierPairs } from "../ingestion/ebay/sync-prices";
 import { describeVariantForQuery, variantMatchKeywords, titleMatchesVariant } from "../ingestion/ebay/sweep-catalog";
 import { writePriceObservationsBatch } from "@/lib/pricing/write-observation";
 import { recomputeCurrentPricesForVariants } from "@/lib/pricing/recompute";
@@ -102,7 +102,7 @@ async function buildTargets(prisma: typeof import("../ingestion/engine/prisma").
       cardNumber: v.card.number,
       setName: set.name,
       serialTo: v.serialTo,
-      variantKeywords: v.parallelId || v.insertId ? variantMatchKeywords(v) : undefined,
+      variantKeywords: v.parallelId || v.insertId ? variantMatchKeywords(v, set.name, v.card.name) : undefined,
       tier,
     };
   });
@@ -175,18 +175,21 @@ async function main() {
 
       if (items.length > 0 && cleanItems.length === 0) filteredOutTargets.push(target);
 
-      const rawPrices = cleanItems.map((it) => Number(it.price!.value)).filter((v) => Number.isFinite(v) && v > 0);
-      const cleanPrices = dropGrossOutliers(rawPrices).slice(0, MAX_OBSERVATIONS_PER_CARD);
+      const pricedItems = cleanItems
+        .map((item) => ({ item, price: Number(item.price!.value) }))
+        .filter((p) => Number.isFinite(p.price) && p.price > 0);
+      const cleanPairs = dropGrossOutlierPairs(pricedItems).slice(0, MAX_OBSERVATIONS_PER_CARD);
+      const cleanPrices = cleanPairs.map((p) => p.price);
 
       const now = new Date();
-      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPrices.map((price, idx) => ({
+      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPairs.map(({ price, item }) => ({
         variantId: target.variantId,
         kind: "LISTING",
         price,
         currency: "USD",
         observedAt: now,
-        sourceUrl: cleanItems[idx]?.itemWebUrl ?? undefined,
-        externalRef: cleanItems[idx]?.itemId,
+        sourceUrl: item.itemWebUrl ?? undefined,
+        externalRef: item.itemId,
         sourceId,
       }));
       const written = await writePriceObservationsBatch(rows, prisma);

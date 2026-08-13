@@ -50,7 +50,7 @@ import { prisma } from "../engine/prisma";
 import { getOrCreateDataSource, attachHotlinkImage } from "../engine/media";
 import { processMediaRow } from "../engine/process-media";
 import { searchItems, isLikelyBulkListing, isLikelyGraded, titleMatchesCard } from "./api-client";
-import { median, dropGrossOutliers } from "./sync-prices";
+import { median, dropGrossOutlierPairs } from "./sync-prices";
 import { writePriceObservationsBatch } from "@/lib/pricing/write-observation";
 import { recomputeCurrentPricesForVariants } from "@/lib/pricing/recompute";
 import { throttleRequest, type RateLimitWindow } from "@/lib/pricing/rate-limit";
@@ -198,13 +198,52 @@ export function describeVariantForQuery(v: { parallel: { name: string } | null; 
  * see titleMatchesVariant() below. Returns [] when there's nothing
  * distinctive to require (falls back to the plain card-level match).
  */
-export function variantMatchKeywords(v: { parallel: { name: string; color: string | null } | null; insert: { name: string } | null }): string[] {
+// `setName`/`cardName` are optional only for callers that genuinely have
+// nothing better (kept backward-compatible), but every real call site below
+// passes both — omitting either re-opens the exact bug these parameters
+// exist to close.
+export function variantMatchKeywords(
+  v: { parallel: { name: string; color: string | null } | null; insert: { name: string } | null },
+  setName?: string,
+  cardName?: string
+): string[] {
   const raw = `${v.parallel?.name ?? ""} ${v.insert?.name ?? ""}`
     .split(/[\s/-]+/)
     .map((w) => w.trim())
     .filter((w) => w.length > 2 && !VARIANT_MATCH_STOPWORDS.has(w.toLowerCase()));
   if (v.parallel?.color) raw.push(v.parallel.color);
-  return [...new Set(raw)];
+  // A word that's also part of the SET's own name (e.g. "Topps", "Chrome",
+  // "Basketball" in "Topps Chrome Basketball 2024-25") appears in every
+  // listing title for this set regardless of variant — real bug found
+  // 2026-08-12 running this against a live Chrome set: "Basketball" leaked
+  // out of a parallel literally named "Blue Basketball Refractors" and into
+  // every card's excludeKeywords, and since titleMatchesVariant rejects on
+  // ANY exclude-keyword hit, that one generic word silently zeroed out every
+  // base-card price in the set (every real eBay title mentions "Basketball"
+  // — it's the sport). A word that never varies between a card's own
+  // variants can't be used to tell them apart, in either direction
+  // (positive variantKeywords or negative excludeKeywords) — filtered here
+  // once, at the source, rather than at each of the 5 call sites.
+  //
+  // Same failure mode, different source: a word that's part of THIS CARD's
+  // own name — real bug found 2026-08-14 auditing Topps Chrome Marvel Comics
+  // 2026's own base Spider-Man cards (#163/#164/#165) showing zero clean
+  // prices despite plenty of real matching listings. A set-wide themed
+  // parallel on this set is literally named "Spider-Web ... Refractor" (it
+  // appears on many cards, not just Spider-Man ones), so "Spider" leaked
+  // into every Spider-Man/Spider-Man-2099/Spider-Man-Noir base card's
+  // excludeKeywords via that sibling parallel — and every real listing for
+  // those base cards obviously says "Spider-Man" too, so 100% of otherwise
+  // valid base listings got silently rejected. A sibling parallel's name can
+  // coincidentally echo a card's own name even when neither name mentions
+  // the set — filtered here for the same reason as setWords above.
+  const stripWords = new Set(
+    `${setName ?? ""} ${cardName ?? ""}`
+      .toLowerCase()
+      .split(/[\s/-]+/)
+      .filter(Boolean)
+  );
+  return [...new Set(raw)].filter((w) => !stripWords.has(w.toLowerCase()));
 }
 
 // Any "/N" print-run fraction (e.g. "/99", "/25") in a title is a strong,
@@ -334,6 +373,8 @@ async function fetchNextWindow(
         // silently absorbing a sibling parallel's price). One batched query
         // for the whole window rather than one per base variant.
         const baseCardIds = variants.filter((v) => !v.parallelId && !v.insertId).map((v) => v.card.id);
+        const setIdByCardId = new Map(variants.map((v) => [v.card.id, v.card.setId]));
+        const cardNameByCardId = new Map(variants.map((v) => [v.card.id, v.card.name]));
         const siblingKeywordsByCard = new Map<string, string[]>();
         if (baseCardIds.length > 0) {
           const siblings = await prisma.variant.findMany({
@@ -341,7 +382,9 @@ async function fetchNextWindow(
             include: { parallel: true, insert: true },
           });
           for (const s of siblings) {
-            const kws = variantMatchKeywords(s);
+            const siblingSetName = setNameById.get(setIdByCardId.get(s.cardId) ?? "") ?? "";
+            const siblingCardName = cardNameByCardId.get(s.cardId) ?? "";
+            const kws = variantMatchKeywords(s, siblingSetName, siblingCardName);
             siblingKeywordsByCard.set(s.cardId, [...new Set([...(siblingKeywordsByCard.get(s.cardId) ?? []), ...kws])]);
           }
         }
@@ -369,7 +412,7 @@ async function fetchNextWindow(
             setName,
             tier: OWNED_VARIANTS_TIER,
             serialTo: v.serialTo,
-            variantKeywords: v.parallelId || v.insertId ? variantMatchKeywords(v) : undefined,
+            variantKeywords: v.parallelId || v.insertId ? variantMatchKeywords(v, setName, v.card.name) : undefined,
             excludeKeywords: isBase ? siblingKeywordsByCard.get(v.card.id) : undefined,
           });
         }
@@ -417,7 +460,7 @@ async function fetchNextWindow(
           setName,
           tier: UNOWNED_VARIANTS_TIER,
           serialTo: v.serialTo,
-          variantKeywords: variantMatchKeywords(v),
+          variantKeywords: variantMatchKeywords(v, setName, v.card.name),
         });
       }
       if (page.length > 0) cursorKey = page[page.length - 1].id;
@@ -471,23 +514,24 @@ async function fetchNextWindow(
         if (!best) continue; // shouldn't happen (every seed script creates >=1 variant/card), skip defensively
         const bestVariant = variants.find((v) => v.id === best.id);
         const isBase = !bestVariant?.parallelId && !bestVariant?.insertId;
+        const cardSetName = setNameById.get(card.setId) ?? "";
         // Same protection as the tier-0 branch above — the representative
         // "best" variant for a card is usually its base print, but this
         // batch already has every sibling variant loaded, so no extra query
         // is needed to gather their keywords for exclusion.
         const excludeKeywords = isBase
-          ? [...new Set(variants.filter((v) => v.cardId === card.id && v.id !== best.id).flatMap((v) => variantMatchKeywords(v)))]
+          ? [...new Set(variants.filter((v) => v.cardId === card.id && v.id !== best.id).flatMap((v) => variantMatchKeywords(v, cardSetName, card.name)))]
           : undefined;
         targets.push({
           id: card.id,
           variantId: best.id,
-          query: `${setNameById.get(card.setId) ?? ""} ${card.name} #${card.number}`.trim(),
+          query: `${cardSetName} ${card.name} #${card.number}`.trim(),
           cardName: card.name,
           cardNumber: card.number,
-          setName: setNameById.get(card.setId) ?? "",
+          setName: cardSetName,
           tier,
           serialTo: bestVariant?.serialTo,
-          variantKeywords: isBase ? undefined : bestVariant ? variantMatchKeywords(bestVariant) : undefined,
+          variantKeywords: isBase ? undefined : bestVariant ? variantMatchKeywords(bestVariant, cardSetName, card.name) : undefined,
           excludeKeywords: excludeKeywords && excludeKeywords.length > 0 ? excludeKeywords : undefined,
         });
       }
@@ -563,7 +607,17 @@ export async function sweepEbayCatalog(
     const target = targets[i];
     try {
       await throttleRequest(sourceId, EBAY_DAILY_WINDOW, prisma, maxWaitMsForRateLimit);
-      const { items } = await searchItems(target.query, { limit: 10 });
+      // 50, not 10 — real bug found 2026-08-12 pricing a heavily-paralleled
+      // Chrome set: eBay's relevance ranking surfaces refractor/parallel
+      // listings ahead of plain base singles for a base-card query (sellers
+      // list parallels far more, and/or they rank as more relevant), so a
+      // base target's genuine matching listing is very often past position
+      // 10. Confirmed live: Topps Chrome Basketball 2024-25 #10 Joel Embiid
+      // had 0 valid base listings in the top 10 (all refractors) but several
+      // by position ~20-45 of 344 total. Same request, same quota cost —
+      // `limit` doesn't cost extra against the daily cap, just returns more
+      // of what eBay already searched.
+      const { items } = await searchItems(target.query, { limit: 50 });
       const cleanItems = items.filter(
         (it) =>
           it.price?.currency === "USD" &&
@@ -572,18 +626,21 @@ export async function sweepEbayCatalog(
           titleMatchesCard(it.title, target.cardName, target.cardNumber, target.setName) &&
           titleMatchesVariant(it.title, target)
       );
-      const rawPrices = cleanItems.map((it) => Number(it.price!.value)).filter((v) => Number.isFinite(v) && v > 0);
-      const cleanPrices = dropGrossOutliers(rawPrices).slice(0, MAX_OBSERVATIONS_PER_CARD);
+      const pricedItems = cleanItems
+        .map((item) => ({ item, price: Number(item.price!.value) }))
+        .filter((p) => Number.isFinite(p.price) && p.price > 0);
+      const cleanPairs = dropGrossOutlierPairs(pricedItems).slice(0, MAX_OBSERVATIONS_PER_CARD);
+      const cleanPrices = cleanPairs.map((p) => p.price);
 
       const now = new Date();
-      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPrices.map((price, idx) => ({
+      const rows: Array<RawPriceObservation & { sourceId: string }> = cleanPairs.map(({ price, item }) => ({
         variantId: target.variantId,
         kind: "LISTING",
         price,
         currency: "USD",
         observedAt: now,
-        sourceUrl: cleanItems[idx]?.itemWebUrl ?? undefined,
-        externalRef: cleanItems[idx]?.itemId,
+        sourceUrl: item.itemWebUrl ?? undefined,
+        externalRef: item.itemId,
         sourceId,
       }));
       const written = await writePriceObservationsBatch(rows, prisma);
