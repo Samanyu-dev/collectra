@@ -3,8 +3,23 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { Breakdown } from "@/lib/collection/workspace";
 
-/** Horizontal-bar wrapper for Top Teams/Sets/Players — recharts primitives, same library `PortfolioChart` already uses. */
-export function BarBreakdownChart({ data, color = "#FACC15" }: { data: Breakdown[]; color?: string }) {
+/**
+ * Horizontal-bar wrapper for Top Teams/Sets/Players and Set Insights'
+ * Value by Rarity / Data Confidence — recharts primitives, same library
+ * `PortfolioChart` already uses. `Breakdown.count` is the bar's raw number;
+ * `formatValue` only controls how that number is displayed in the tooltip
+ * (e.g. "$1,234" for a dollar breakdown vs. the plain "12" default for a
+ * card-count breakdown) — the chart itself doesn't care what unit it's in.
+ */
+export function BarBreakdownChart({
+  data,
+  color = "#FACC15",
+  formatValue = (v: number) => String(v),
+}: {
+  data: Breakdown[];
+  color?: string;
+  formatValue?: (value: number) => string;
+}) {
   if (data.length === 0) {
     return <p className="text-xs text-foreground/40 py-4 text-center">Not enough data yet.</p>;
   }
@@ -28,7 +43,7 @@ export function BarBreakdownChart({ data, color = "#FACC15" }: { data: Breakdown
               if (active && payload && payload.length) {
                 return (
                   <div className="bg-background/90 backdrop-blur border border-foreground/10 px-3 py-1.5 rounded-lg text-xs">
-                    {payload[0].payload.name}: <span className="font-mono">{payload[0].value}</span>
+                    {payload[0].payload.name}: <span className="font-mono">{formatValue(Number(payload[0].value))}</span>
                   </div>
                 );
               }

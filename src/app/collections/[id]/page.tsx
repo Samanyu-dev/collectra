@@ -6,6 +6,8 @@ import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { getOwnedVariantQuantities } from "@/lib/actions/collection";
 import { getVariantCardType, getVariantRarityLabel, getRarityTier } from "@/lib/collection/classification";
 import { getSparklinesForVariants } from "@/lib/pricing/history";
+import { getSetWidgets } from "@/lib/intelligence/market/set-widgets";
+import { SetInsights } from "@/components/ui/set-insights";
 import { SetChecklistClient } from "./set-checklist-client";
 
 export const dynamic = "force-dynamic";
@@ -44,9 +46,12 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
     notFound();
   }
 
-  const imagesByCard = await getImagesForEntities("Card", setRaw.cards.map((c) => c.id));
   const allVariantIds = setRaw.cards.flatMap((c) => c.variants.map((v) => v.id));
-  const ownedQuantities = await getOwnedVariantQuantities(allVariantIds);
+  const [imagesByCard, ownedQuantities, setWidgets] = await Promise.all([
+    getImagesForEntities("Card", setRaw.cards.map((c) => c.id)),
+    getOwnedVariantQuantities(allVariantIds),
+    getSetWidgets(setId),
+  ]);
 
   // Sparkline data keyed by each card's highest-priced variant — the same
   // variant CardGrid's PriceTag renders a value for, so the two stay in sync.
@@ -78,6 +83,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   };
   // Find a cover image from the first few cards
   const topCards = set.cards.slice(0, 4);
+  const ownedCount = set.cards.filter((c) => c.owned).length;
 
   return (
     <div className="min-h-screen w-full pb-32">
@@ -104,7 +110,8 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 md:px-12 pt-16">
+      <div className="max-w-[1600px] mx-auto px-6 md:px-12 pt-16 space-y-16">
+        <SetInsights widgets={setWidgets} ownedCount={ownedCount} totalCount={set.cards.length} />
         <SetChecklistClient
           cards={set.cards}
           setId={set.id}

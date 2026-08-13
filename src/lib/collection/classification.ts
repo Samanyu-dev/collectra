@@ -35,6 +35,15 @@ export function getVariantRarityLabel(variant: VariantClassificationInput): stri
   return labels.length > 0 ? labels.join(" · ") : "Base";
 }
 
+export type VariantCategory = "base" | "parallel" | "insert";
+
+/** Same insert > parallel > base precedence as getVariantCardType, bucketed instead of named — for grouping/summing (e.g. Value by Rarity). */
+export function getVariantCategory(variant: VariantClassificationInput): VariantCategory {
+  if (variant.insert?.name) return "insert";
+  if (variant.parallel?.name) return "parallel";
+  return "base";
+}
+
 export type RarityTier = "common" | "rare" | "epic" | "legendary" | "unique";
 
 /**

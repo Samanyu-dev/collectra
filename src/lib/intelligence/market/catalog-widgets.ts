@@ -29,7 +29,7 @@ export interface CatalogWidgets {
   topValuable: CatalogCard[];
 }
 
-const CARD_INCLUDE = {
+export const CARD_INCLUDE = {
   variant: {
     include: {
       insert: true,
@@ -40,7 +40,7 @@ const CARD_INCLUDE = {
   },
 } as const;
 
-type PricedVariantRow = {
+export type PricedVariantRow = {
   variantId: string | null;
   marketPriceUsd: number | null;
   trend30dPercent: number | null;
@@ -62,7 +62,10 @@ type PricedVariantRow = {
   } | null;
 };
 
-async function toCatalogCards(rows: PricedVariantRow[]): Promise<CatalogCard[]> {
+// Exported so set-widgets.ts (Set Insights' Top Valuable/Movers, scoped to
+// one set instead of the whole catalog) can reuse the exact same row-shaping
+// logic rather than re-implementing image/sparkline/classification resolution.
+export async function toCatalogCards(rows: PricedVariantRow[]): Promise<CatalogCard[]> {
   const cardIds = rows.map((r) => r.variant?.card.id).filter((id): id is string => !!id);
   const [imagesByCard, sparklines] = await Promise.all([
     getImagesForEntities("Card", cardIds),
@@ -138,17 +141,18 @@ export async function getCatalogWidgets(): Promise<CatalogWidgets> {
     toCatalogCards(topRows),
   ]);
 
-  const withTrend = (cards: CatalogCard[], rows: PricedVariantRow[]): MoverCard[] => {
-    const trendByVariant = new Map(rows.map((r) => [r.variantId, r.trend30dPercent]));
-    return cards.map((c) => ({ ...c, changePercent: trendByVariant.get(c.variantId) ?? 0 }));
-  };
-
   return {
-    gainers: withTrend(gainers, gainerRows),
-    losers: withTrend(losers, loserRows),
+    gainers: attachTrend(gainers, gainerRows),
+    losers: attachTrend(losers, loserRows),
     recentlyPriced,
     topValuable,
   };
+}
+
+// Exported alongside toCatalogCards/CARD_INCLUDE for set-widgets.ts's reuse.
+export function attachTrend(cards: CatalogCard[], rows: PricedVariantRow[]): MoverCard[] {
+  const trendByVariant = new Map(rows.map((r) => [r.variantId, r.trend30dPercent]));
+  return cards.map((c) => ({ ...c, changePercent: trendByVariant.get(c.variantId) ?? 0 }));
 }
 
 export interface SetTotal {

@@ -54,10 +54,12 @@ export function MarketMoversSection({
   gainers,
   losers,
   recentlyPriced,
+  scopeLabel = "Catalog-wide",
 }: {
   gainers: MoverCard[];
   losers: MoverCard[];
   recentlyPriced: CatalogCard[];
+  scopeLabel?: string;
 }) {
   const [tab, setTab] = useState<TabKey>("gainers");
   const active = tab === "gainers" ? gainers : tab === "losers" ? losers : recentlyPriced;
@@ -68,7 +70,7 @@ export function MarketMoversSection({
         <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest">
           <TrendingUp size={16} /> Market Movers
         </div>
-        <span className="text-[10px] text-foreground/30 uppercase tracking-widest">Catalog-wide</span>
+        <span className="text-[10px] text-foreground/30 uppercase tracking-widest">{scopeLabel}</span>
       </div>
 
       <div className="flex gap-1 mb-3 border-b border-foreground/10">

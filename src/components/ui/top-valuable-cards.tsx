@@ -28,12 +28,12 @@ function Stars({ tier }: { tier: RarityTier }) {
   );
 }
 
-export function TopValuableCardsSection({ cards }: { cards: CatalogCard[] }) {
+export function TopValuableCardsSection({ cards, scopeLabel = "Catalog-wide" }: { cards: CatalogCard[]; scopeLabel?: string }) {
   return (
     <section>
       <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
         <Trophy size={16} /> Top Valuable Cards
-        <span className="text-[10px] text-foreground/30 normal-case tracking-normal ml-1">Catalog-wide</span>
+        <span className="text-[10px] text-foreground/30 normal-case tracking-normal ml-1">{scopeLabel}</span>
       </div>
 
       {cards.length === 0 ? (
