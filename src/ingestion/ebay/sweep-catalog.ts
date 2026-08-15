@@ -275,8 +275,24 @@ const SERIAL_FRACTION_PATTERN = /\/\s*\d+\b/;
  *    Without this, a base-variant search had no protection at all in this
  *    direction.
  */
+// Real sellers often space out a catalog compound word that has none — real
+// gap found 2026-08-14 auditing Turbo Attax 2025's Fernando Alonso #342
+// Supernova insert: the catalog stores the insert name as "Supernova" (one
+// word), but the real matching eBay listing was titled "...Super Nova..."
+// (seller's two words), so the exact-substring check below never matched a
+// single owned card despite the listing genuinely existing. Comparing
+// space/hyphen-collapsed forms alongside the exact check catches this
+// without loosening the check in the other direction — an unrelated word
+// can't accidentally collapse into a longer catalog keyword; the collapsed
+// substring still has to line up character-for-character.
+function collapseForMatch(s: string): string {
+  return s.toLowerCase().replace(/[\s-]+/g, "");
+}
+
 export function titleMatchesVariant(title: string, target: { serialTo?: number | null; variantKeywords?: string[]; excludeKeywords?: string[] }): boolean {
   const t = title.toLowerCase();
+  const tCollapsed = collapseForMatch(title);
+  const keywordHits = (kw: string) => t.includes(kw.toLowerCase()) || tCollapsed.includes(collapseForMatch(kw));
 
   if (target.serialTo) {
     if (!new RegExp(`/\\s*0*${target.serialTo}\\b`).test(t)) return false;
@@ -286,11 +302,11 @@ export function titleMatchesVariant(title: string, target: { serialTo?: number |
   }
 
   if (target.variantKeywords && target.variantKeywords.length > 0) {
-    return target.variantKeywords.some((kw) => t.includes(kw.toLowerCase()));
+    return target.variantKeywords.some(keywordHits);
   }
 
   if (target.excludeKeywords && target.excludeKeywords.length > 0) {
-    if (target.excludeKeywords.some((kw) => t.includes(kw.toLowerCase()))) return false;
+    if (target.excludeKeywords.some(keywordHits)) return false;
   }
 
   return true;
