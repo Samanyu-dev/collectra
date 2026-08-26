@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.pokemontcg.io' },
       { protocol: 'https', hostname: 'images.scrydex.com' },
+      // MTG card art (Gatherer) and sports team badges (TheSportsDB) —
+      // still hotlinked (provider="external") for thousands of rows rather
+      // than re-hosted, same missing-remotePatterns bug as the Supabase/Blob
+      // entries below: confirmed via a DB audit of Media.storageKey hosts
+      // (2026-08-27) that these were silently breaking every MTG card image
+      // and every team badge on /cards.
+      { protocol: 'http', hostname: 'gatherer.wizards.com' },
+      { protocol: 'https', hostname: 'r2.thesportsdb.com' },
+      { protocol: 'https', hostname: 'www.thesportsdb.com' },
+      { protocol: 'https', hostname: 'i.ebayimg.com' },
       // Supabase Storage — where nearly all media (Pokemon official art, eBay
       // listing photos, user uploads, scans) actually lives now, re-hosted by
       // the ingestion/scan pipelines. This was missing, which is why
