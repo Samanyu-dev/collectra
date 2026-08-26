@@ -20,30 +20,32 @@ extension Color {
 /// carries over). This is a distinct native app, not a pixel clone of the
 /// web layout or of the competitor Collectr's UI.
 enum Theme {
+    /// Every property here reads through to `ThemeManager.shared.palette`
+    /// (see ThemeManager's doc comment for why this is a static read rather
+    /// than an `@Environment` value) — Minimal's exact original hex values
+    /// live on as `ThemePalette.minimal`, the default until a user picks
+    /// Vibrant from Profile.
+    @MainActor
     enum Color_ {
-        static let background = Color(hex: 0x121212)
-        static let surface = Color(hex: 0x1A1A1A)
-        static let elevated = Color(hex: 0x242424)
-        static let foreground = Color(hex: 0xF5F5F5)
-        static let textSecondary = Color(hex: 0x8C8C8C)
-        static let textTertiary = Color(hex: 0x595959)
-        static let border = Color.white.opacity(0.08)
-        static let destructive = Color(hex: 0xE5484D)
+        static var background: Color { ThemeManager.shared.palette.background }
+        static var surface: Color { ThemeManager.shared.palette.surface }
+        static var elevated: Color { ThemeManager.shared.palette.elevated }
+        static var foreground: Color { ThemeManager.shared.palette.foreground }
+        static var textSecondary: Color { ThemeManager.shared.palette.textSecondary }
+        static var textTertiary: Color { ThemeManager.shared.palette.textTertiary }
+        static var border: Color { ThemeManager.shared.palette.border }
+        static var destructive: Color { ThemeManager.shared.palette.destructive }
 
-        // Rarity accent hierarchy — identical hex values to
-        // src/app/globals.css's --color-rarity-* tokens (already sRGB, no
-        // conversion needed), so a card's rarity reads the same color on
-        // iOS as on the web.
-        static let rarityCommon = Color(hex: 0x8B8B8B)
-        static let rarityUncommon = Color(hex: 0x4ADE80)
-        static let rarityRare = Color(hex: 0x60A5FA)
-        static let rarityHolo = Color(hex: 0x818CF8)
-        static let rarityUltra = Color(hex: 0xC084FC)
-        static let rarityIllustration = Color(hex: 0xF472B6)
-        static let raritySAR = Color(hex: 0xFB923C)
-        static let rarityHyper = Color(hex: 0xF43F5E)
-        static let raritySecret = Color(hex: 0xFACC15)
-        static let rarityPromo = Color(hex: 0x2DD4BF)
+        static var rarityCommon: Color { ThemeManager.shared.palette.rarityCommon }
+        static var rarityUncommon: Color { ThemeManager.shared.palette.rarityUncommon }
+        static var rarityRare: Color { ThemeManager.shared.palette.rarityRare }
+        static var rarityHolo: Color { ThemeManager.shared.palette.rarityHolo }
+        static var rarityUltra: Color { ThemeManager.shared.palette.rarityUltra }
+        static var rarityIllustration: Color { ThemeManager.shared.palette.rarityIllustration }
+        static var raritySAR: Color { ThemeManager.shared.palette.raritySAR }
+        static var rarityHyper: Color { ThemeManager.shared.palette.rarityHyper }
+        static var raritySecret: Color { ThemeManager.shared.palette.raritySecret }
+        static var rarityPromo: Color { ThemeManager.shared.palette.rarityPromo }
     }
 
     enum Typography {

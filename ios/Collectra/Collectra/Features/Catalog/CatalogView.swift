@@ -1,138 +1,85 @@
 import SwiftUI
 
-/// Phase 4: real card browsing/search/pagination on top of `CatalogViewModel`
-/// (View → ViewModel → CatalogService → APIClient → `/api/v1`). Owns its own
-/// `NavigationStack` so pushing `CardDetailView` and popping back keeps this
-/// view — and the `@StateObject` view model holding search text/results —
-/// alive underneath, which is what preserves search state and scroll
-/// position across a card visit (Phase 4 requirement §10) with no extra work.
+/// Phase 4 (Cards) + iOS Sets/Home/Theming phase (Sets): the Catalog tab
+/// root. `Cards | Sets` segmented switcher over one shared `NavigationStack`
+/// — same idiom `ShelfView` already established for Shelf/Vault/Wishlist —
+/// so pushing a card or set detail and popping back preserves both grids'
+/// search text/results/scroll position (both view models stay alive as
+/// `@StateObject`s regardless of which segment is showing).
 struct CatalogView: View {
-    @StateObject private var viewModel = CatalogViewModel()
+    private enum Section: String, CaseIterable, Identifiable {
+        case cards = "Cards"
+        case sets = "Sets"
+        var id: String { rawValue }
+    }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: Theme.Spacing.md),
-        GridItem(.flexible(), spacing: Theme.Spacing.md),
-    ]
+    @State private var section: Section = .cards
+    @StateObject private var cardsViewModel = CatalogViewModel()
+    @StateObject private var setsViewModel = SetsViewModel()
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.Color_.background.ignoresSafeArea()
-                content
+                Group {
+                    switch section {
+                    case .cards:
+                        CardsGridContent(viewModel: cardsViewModel)
+                    case .sets:
+                        SetsGridContent(viewModel: setsViewModel)
+                    }
+                }
             }
             .navigationTitle("Catalog")
-            .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search cards, sets, players…")
-            .onChange(of: viewModel.searchText) { _, _ in viewModel.onSearchTextChanged() }
-            .onSubmit(of: .search) { viewModel.submitSearchNow() }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Section", selection: $section) {
+                        ForEach(Section.allCases) { s in
+                            Text(s.rawValue).tag(s)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                }
+            }
+            .searchable(text: searchTextBinding, placement: .navigationBarDrawer(displayMode: .always), prompt: searchPrompt)
+            .onChange(of: searchTextBinding.wrappedValue) { _, _ in onSearchTextChanged() }
+            .onSubmit(of: .search) { submitSearchNow() }
             .navigationDestination(for: CardSummary.self) { card in
                 CardDetailView(cardId: card.id, cardName: card.name)
             }
+            .navigationDestination(for: SetSummary.self) { set in
+                SetDetailView(setId: set.id, setName: set.name)
+            }
         }
-        .onAppear { viewModel.onAppear() }
         .preferredColorScheme(.dark)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        switch viewModel.loadState {
-        case .idle:
-            Color.clear
-        case .loading where viewModel.items.isEmpty:
-            loadingView
-        case .error(let message):
-            errorView(message: message)
-        case .empty:
-            emptyView
-        default:
-            gridView
+    private var searchTextBinding: Binding<String> {
+        switch section {
+        case .cards: return $cardsViewModel.searchText
+        case .sets: return $setsViewModel.searchText
         }
     }
 
-    private var gridView: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                ForEach(viewModel.items) { card in
-                    NavigationLink(value: card) {
-                        CardCell(card: card)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("catalog-card-cell")
-                    .onAppear { viewModel.loadNextPageIfNeeded(currentItem: card) }
-                }
-            }
-            .padding(Theme.Spacing.md)
-
-            if viewModel.isLoadingNextPage {
-                ProgressView()
-                    .tint(Theme.Color_.textSecondary)
-                    .padding(.vertical, Theme.Spacing.md)
-            }
-
-            if let message = viewModel.paginationErrorMessage {
-                VStack(spacing: Theme.Spacing.sm) {
-                    Text(message)
-                        .font(Theme.Typography.body(12))
-                        .foregroundStyle(Theme.Color_.destructive)
-                    Button("Retry") { viewModel.retryNextPage() }
-                        .font(Theme.Typography.body(12, weight: .semibold))
-                        .foregroundStyle(Theme.Color_.foreground)
-                }
-                .padding(.bottom, Theme.Spacing.md)
-            }
-        }
-        .refreshable { await viewModel.refresh() }
-        .overlay(alignment: .top) {
-            if viewModel.loadState == .loading && !viewModel.items.isEmpty {
-                ProgressView()
-                    .tint(Theme.Color_.textSecondary)
-                    .padding(.top, Theme.Spacing.sm)
-            }
+    private var searchPrompt: String {
+        switch section {
+        case .cards: return "Search cards, sets, players…"
+        case .sets: return "Search sets…"
         }
     }
 
-    private var loadingView: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            ProgressView().tint(Theme.Color_.textSecondary)
-            Text("Loading catalog…")
-                .font(Theme.Typography.body(13))
-                .foregroundStyle(Theme.Color_.textTertiary)
+    private func onSearchTextChanged() {
+        switch section {
+        case .cards: cardsViewModel.onSearchTextChanged()
+        case .sets: setsViewModel.onSearchTextChanged()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var emptyView: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 36))
-                .foregroundStyle(Theme.Color_.textTertiary)
-            Text(viewModel.searchText.isEmpty ? "No cards found" : "No results for \u{201C}\(viewModel.searchText)\u{201D}")
-                .font(Theme.Typography.body(15, weight: .medium))
-                .foregroundStyle(Theme.Color_.textSecondary)
-                .multilineTextAlignment(.center)
-            if !viewModel.searchText.isEmpty {
-                Button("Clear Search") { viewModel.clearSearch() }
-                    .font(Theme.Typography.body(14, weight: .semibold))
-                    .foregroundStyle(Theme.Color_.foreground)
-            }
+    private func submitSearchNow() {
+        switch section {
+        case .cards: cardsViewModel.submitSearchNow()
+        case .sets: setsViewModel.submitSearchNow()
         }
-        .padding(Theme.Spacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func errorView(message: String) -> some View {
-        VStack(spacing: Theme.Spacing.md) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 32))
-                .foregroundStyle(Theme.Color_.destructive)
-            Text(message)
-                .font(Theme.Typography.body(14))
-                .foregroundStyle(Theme.Color_.textSecondary)
-                .multilineTextAlignment(.center)
-            Button("Try Again") { viewModel.retry() }
-                .buttonStyle(PrimaryButtonStyle())
-                .frame(maxWidth: 200)
-        }
-        .padding(Theme.Spacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

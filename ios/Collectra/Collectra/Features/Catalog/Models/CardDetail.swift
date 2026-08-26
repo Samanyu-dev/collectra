@@ -82,8 +82,10 @@ struct CardDetail: Decodable, Equatable {
     let variants: [CardVariant]
     let viewer: Viewer?
 
+    /// The detail hero — prefers OFFICIAL_ARTWORK, the best quality
+    /// available, matching the web app's `pickPrimaryImage` priority.
     var primaryImageURL: URL? {
-        images.first.flatMap { URL(string: $0.url) }
+        images.primaryImageURL()
     }
 
     /// Returns a copy with one variant replaced by id — the mechanism

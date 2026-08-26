@@ -44,6 +44,24 @@ struct FixtureError: Error, Equatable {
     let message: String
 }
 
+extension SetSummary {
+    /// Builds a minimal, no-progress set for SetsViewModel pagination/search tests.
+    static func fixture(id: String, name: String? = nil, ownedCount: Int = 0) -> SetSummary {
+        SetSummary(
+            id: id,
+            name: name ?? "Set \(id)",
+            franchiseName: "Test Franchise",
+            brandName: "Test Brand",
+            seriesName: "Test Series",
+            imageUrl: nil,
+            releaseDate: nil,
+            printedTotal: 100,
+            ownedCount: ownedCount,
+            totalValueUsd: 0
+        )
+    }
+}
+
 extension ShelfItem {
     static func fixture(variantId: String = "v1", cardId: String = "card-1", cardName: String = "Card", quantity: Int = 1) -> ShelfItem {
         ShelfItem(

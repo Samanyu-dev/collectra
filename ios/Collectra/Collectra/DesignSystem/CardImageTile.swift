@@ -8,9 +8,14 @@ import SwiftUI
 /// tested code.
 struct CardImageTile: View {
     let url: URL?
+    /// Points, not pixels — forwarded to `CachedAsyncImage` so the decode is
+    /// downsampled to this cell's actual on-screen size. Defaults to a
+    /// typical 2-column grid cell's width; pass the real size wherever a
+    /// call site knows a different one (e.g. a fixed-width rail thumbnail).
+    var targetSize: CGSize? = CGSize(width: 180, height: 250)
 
     var body: some View {
-        CachedAsyncImage(url: url) { phase in
+        CachedAsyncImage(url: url, targetSize: targetSize) { phase in
             switch phase {
             case .empty:
                 placeholder(systemImage: "photo")

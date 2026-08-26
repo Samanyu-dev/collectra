@@ -16,8 +16,11 @@ struct CardSummary: Decodable, Equatable, Identifiable, Hashable {
     let price: PriceDisplay
     let ownedQuantity: Int
 
+    /// Always used in a grid cell (`CardCell`) — prefers the smaller
+    /// THUMBNAIL variant when one exists, never full-resolution art a grid
+    /// tile doesn't need.
     var primaryImageURL: URL? {
-        images.first.flatMap { URL(string: $0.url) }
+        images.primaryImageURL(preferSmaller: true)
     }
 
     static func == (lhs: CardSummary, rhs: CardSummary) -> Bool {

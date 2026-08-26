@@ -38,12 +38,28 @@ targets:
           - UIInterfaceOrientationPortrait
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        NSCameraUsageDescription: Collectra uses your camera to identify cards and add them to your collection.
         API_BASE_URL: $(API_BASE_URL)
         SUPABASE_URL: $(SUPABASE_URL)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
     dependencies:
       - package: Supabase
         product: Supabase
+
+  CollectraTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: CollectraTests
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.collectra.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Collectra
+    dependencies:
+      - target: Collectra
 
   CollectraUITests:
     type: bundle.ui-testing
@@ -64,12 +80,14 @@ schemes:
     build:
       targets:
         Collectra: all
+        CollectraTests: [test]
         CollectraUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
+        - CollectraTests
         - CollectraUITests
     archive:
       config: Release

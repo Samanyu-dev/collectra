@@ -29,7 +29,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F7FDAF56CFDD435D957119E5"
+               BlueprintIdentifier = "13CB22643A10E67A7A6CCFE8"
                BuildableName = "CollectraTests.xctest"
                BlueprintName = "CollectraTests"
                ReferencedContainer = "container:Collectra.xcodeproj">
@@ -69,10 +69,10 @@
       <Testables>
          <TestableReference
             skipped = "NO"
-            parallelizable = "YES">
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F7FDAF56CFDD435D957119E5"
+               BlueprintIdentifier = "13CB22643A10E67A7A6CCFE8"
                BuildableName = "CollectraTests.xctest"
                BlueprintName = "CollectraTests"
                ReferencedContainer = "container:Collectra.xcodeproj">

@@ -15,8 +15,9 @@ struct WishlistItem: Decodable, Equatable, Identifiable {
     let price: PriceDisplay
     let alertTriggered: Bool
 
+    /// Grid-cell image — prefers the smaller THUMBNAIL variant.
     var primaryImageURL: URL? {
-        images.first.flatMap { URL(string: $0.url) }
+        images.primaryImageURL(preferSmaller: true)
     }
 }
 

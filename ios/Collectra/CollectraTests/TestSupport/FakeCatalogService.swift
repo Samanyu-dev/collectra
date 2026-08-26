@@ -10,6 +10,7 @@ import Foundation
 actor FakeCatalogService: CatalogServicing {
     struct Call: Equatable {
         let query: String
+        let setId: String?
         let page: Int
         let pageSize: Int
     }
@@ -23,8 +24,8 @@ actor FakeCatalogService: CatalogServicing {
         self.index = 0
     }
 
-    func fetchCards(query: String, page: Int, pageSize: Int) async throws -> CardListResponse {
-        calls.append(Call(query: query, page: page, pageSize: pageSize))
+    func fetchCards(query: String, setId: String?, page: Int, pageSize: Int) async throws -> CardListResponse {
+        calls.append(Call(query: query, setId: setId, page: page, pageSize: pageSize))
         guard index < responses.count else {
             return CardListResponse(
                 items: [],

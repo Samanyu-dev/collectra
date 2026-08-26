@@ -33,8 +33,10 @@ struct ShelfItem: Decodable, Equatable, Identifiable {
 
     var id: String { variantId }
 
+    /// Grid-cell image — prefers the smaller THUMBNAIL variant at whichever
+    /// level (variant-specific art, then card-level) actually has one.
     var primaryImageURL: URL? {
-        (variantImages.first ?? images.first).flatMap { URL(string: $0.url) }
+        variantImages.primaryImageURL(preferSmaller: true) ?? images.primaryImageURL(preferSmaller: true)
     }
 }
 

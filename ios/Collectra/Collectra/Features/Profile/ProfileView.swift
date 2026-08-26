@@ -5,6 +5,7 @@ import SwiftUI
 /// rest of the profile/settings surface on top of this same pattern.
 struct ProfileView: View {
     @EnvironmentObject private var session: SessionManager
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var me: Me?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -36,6 +37,8 @@ struct ProfileView: View {
                             profileCard(me)
                             summaryCard(me.collectionSummary)
                         }
+
+                        appearanceCard
 
                         Button(role: .destructive) {
                             Task { await signOut() }
@@ -80,6 +83,24 @@ struct ProfileView: View {
             statRow("Vaulted", "\(summary.vaultedCount)")
             statRow("Wishlist", "\(summary.wishlistCount)")
         }
+        .padding(Theme.Spacing.lg)
+        .surface()
+    }
+
+    private var appearanceCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Appearance")
+                .font(Theme.Typography.body(13, weight: .semibold))
+                .foregroundStyle(Theme.Color_.textSecondary)
+
+            Picker("Theme", selection: $themeManager.selection) {
+                ForEach(ThemeManager.Selection.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Spacing.lg)
         .surface()
     }

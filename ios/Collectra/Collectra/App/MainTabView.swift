@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// The navigation architecture Phase 4 (Catalog/Card Detail) and Phase 5
-/// (Shelf/Vault/Wishlist) build on top of. `TabRouter` lets a screen in one
-/// tab (e.g. Shelf's empty state) switch to another (Catalog) — the one
-/// piece of shared app-shell state Phase 5 needs.
+/// The app's tab shell. `TabRouter` lets a screen in one tab (e.g. Shelf's
+/// empty state) switch to another (Catalog) — the one piece of shared
+/// app-shell state that needs to live above any single tab.
 struct MainTabView: View {
     @StateObject private var tabRouter = TabRouter()
 
@@ -32,30 +31,5 @@ struct MainTabView: View {
         .environmentObject(tabRouter)
         .tint(Theme.Color_.foreground)
         .preferredColorScheme(.dark)
-    }
-}
-
-/// Shared placeholder shell for the screens this phase intentionally leaves
-/// empty (Home/Catalog/Shelf) — Phase 4/5 replace the body, not the
-/// navigation structure around it.
-struct PlaceholderScreen: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.Color_.background.ignoresSafeArea()
-                VStack(spacing: Theme.Spacing.md) {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 40))
-                        .foregroundStyle(Theme.Color_.textTertiary)
-                    Text("\(title) is coming soon")
-                        .font(Theme.Typography.body(15))
-                        .foregroundStyle(Theme.Color_.textSecondary)
-                }
-            }
-            .navigationTitle(title)
-        }
     }
 }

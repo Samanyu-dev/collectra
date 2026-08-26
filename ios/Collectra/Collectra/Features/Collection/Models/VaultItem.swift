@@ -25,8 +25,9 @@ struct VaultItem: Decodable, Equatable, Identifiable {
 
     var id: String { instanceId }
 
+    /// Grid-cell image — prefers the smaller THUMBNAIL variant.
     var primaryImageURL: URL? {
-        images.first.flatMap { URL(string: $0.url) }
+        images.primaryImageURL(preferSmaller: true)
     }
 }
 

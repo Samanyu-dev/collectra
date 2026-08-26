@@ -125,7 +125,7 @@ struct CardDetailView: View {
     }
 
     private func heroImage(_ detail: CardDetail) -> some View {
-        CachedAsyncImage(url: detail.primaryImageURL) { phase in
+        CachedAsyncImage(url: detail.primaryImageURL, targetSize: CGSize(width: UIScreen.main.bounds.width, height: 340)) { phase in
             switch phase {
             case .empty:
                 heroPlaceholder(systemImage: "photo")
