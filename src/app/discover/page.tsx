@@ -7,6 +7,7 @@ import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Greeting } from "./greeting";
 import { FeaturedCard } from "@/components/ui/featured-card";
+import { EntityTile } from "@/components/ui/entity-tile";
 
 export const dynamic = "force-dynamic";
 
@@ -147,29 +148,22 @@ export default async function DiscoveryEnginePage() {
             <h3 className="text-2xl font-display font-medium tracking-wide flex items-center gap-3">
               <Brush className="text-primary" /> Legendary Illustrators
             </h3>
+            <Link href="/artists" className="text-xs font-mono uppercase tracking-widest text-foreground/50 hover:text-foreground transition-colors">
+              See all →
+            </Link>
           </div>
           {legendaryArtists.length === 0 ? (
             <p className="text-foreground/30 text-sm py-8 text-center border border-dashed border-foreground/10 rounded-2xl">No artist data found yet.</p>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {legendaryArtists.map((artist) => (
-              <Link key={artist.id} href={`/artists/${artist.id}`} className="group relative block p-6 rounded-2xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-all overflow-hidden h-64 flex flex-col justify-between">
-                {/* Background blurry art hint */}
-                {artist.cards[0]?.images[0]?.url && (
-                  <div className="absolute inset-0 opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                    <Image src={artist.cards[0].images[0].url} alt="" fill className="object-cover blur-md" />
-                  </div>
-                )}
-                
-                <div className="relative z-10">
-                  <h4 className="text-2xl font-display font-bold group-hover:text-primary transition-colors">{artist.name}</h4>
-                  <p className="text-sm font-mono text-foreground/50 mt-2">{artist._count.cards} Cards</p>
-                </div>
-                
-                <div className="relative z-10 w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center">
-                  <span className="text-foreground/50 group-hover:text-foreground transition-colors">→</span>
-                </div>
-              </Link>
+              <EntityTile
+                key={artist.id}
+                href={`/artists/${artist.id}`}
+                name={artist.name}
+                meta={`${artist._count.cards} Card${artist._count.cards === 1 ? '' : 's'}`}
+                imageUrl={artist.cards[0]?.images[0]?.url}
+              />
             ))}
           </div>
           )}
@@ -181,29 +175,22 @@ export default async function DiscoveryEnginePage() {
             <h3 className="text-2xl font-display font-medium tracking-wide flex items-center gap-3">
               <Users className="text-primary" /> Character Ecosystem
             </h3>
+            <Link href="/characters" className="text-xs font-mono uppercase tracking-widest text-foreground/50 hover:text-foreground transition-colors">
+              See all →
+            </Link>
           </div>
           {topCharacters.length === 0 ? (
             <p className="text-foreground/30 text-sm py-8 text-center border border-dashed border-foreground/10 rounded-2xl">No character data found yet.</p>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {topCharacters.map((character) => (
-              <Link key={character.id} href={`/characters/${character.id}`} className="group relative block p-6 rounded-2xl bg-elevated border border-foreground/10 hover:bg-foreground/10 transition-all overflow-hidden h-64 flex flex-col justify-between">
-                {/* Background blurry art hint */}
-                {character.cards[0]?.images[0]?.url && (
-                  <div className="absolute inset-0 opacity-10 group-hover:opacity-30 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                    <Image src={character.cards[0].images[0].url} alt="" fill className="object-cover blur-sm" />
-                  </div>
-                )}
-                
-                <div className="relative z-10">
-                  <h4 className="text-2xl font-display font-bold group-hover:text-primary transition-colors">{character.name}</h4>
-                  <p className="text-sm font-mono text-foreground/50 mt-2">{character._count.cards} Appearances</p>
-                </div>
-                
-                <div className="relative z-10 w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center">
-                  <span className="text-foreground/50 group-hover:text-foreground transition-colors">→</span>
-                </div>
-              </Link>
+              <EntityTile
+                key={character.id}
+                href={`/characters/${character.id}`}
+                name={character.name}
+                meta={`${character._count.cards} Appearance${character._count.cards === 1 ? '' : 's'}`}
+                imageUrl={character.cards[0]?.images[0]?.url}
+              />
             ))}
           </div>
           )}
