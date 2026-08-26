@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Layers, Sparkles, Clock } from "lucide-react";
 import { getPublicProfileData } from "@/lib/intelligence/feed/public-profile";
 import { getRarityTier } from "@/lib/collection/classification";
+import { getCurrentUser } from "@/lib/auth/session";
+import { GuestDockToggle } from "./guest-dock-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +30,14 @@ export default async function PublicProfilePage(props: { params: Promise<{ usern
     notFound();
   }
 
-  const data = await getPublicProfileData({ id: user.id, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl });
+  const [data, viewer] = await Promise.all([
+    getPublicProfileData({ id: user.id, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl }),
+    getCurrentUser(),
+  ]);
 
   return (
     <div className="min-h-screen w-full pb-32">
+      <GuestDockToggle hide={!viewer} />
       <div className="max-w-3xl mx-auto px-6 md:px-12 pt-16 md:pt-24 space-y-10">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-2xl shrink-0 overflow-hidden relative">
@@ -77,6 +83,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ usern
                   setName={data.rarestPull.setName}
                   imageUrl={data.rarestPull.imageUrl}
                   glowClass={RARITY_GLOW[data.rarestPull.rarityTier]}
+                  foil
                 />
               )}
               {data.latestPull && (
@@ -119,6 +126,7 @@ function PullCard({
   setName,
   imageUrl,
   glowClass,
+  foil = false,
 }: {
   icon: typeof Sparkles;
   label: string;
@@ -127,11 +135,12 @@ function PullCard({
   setName: string;
   imageUrl: string | null;
   glowClass?: string;
+  foil?: boolean;
 }) {
   return (
     <Link
       href={`/cards/${cardId}`}
-      className={`flex items-center gap-4 p-4 rounded-2xl bg-foreground/5 border border-foreground/10 hover:border-foreground/20 transition-colors ${glowClass ?? ""}`}
+      className={`flex items-center gap-4 p-4 rounded-2xl bg-foreground/5 border border-foreground/10 hover:border-foreground/20 transition-colors ${glowClass ?? ""} ${foil ? "foil-frame" : ""}`}
     >
       <div className="w-14 h-20 rounded-lg overflow-hidden bg-foreground/10 shrink-0 relative">
         {imageUrl && <Image src={imageUrl} alt={cardName} fill className="object-cover" />}

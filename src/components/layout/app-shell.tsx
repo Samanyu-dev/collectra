@@ -172,13 +172,20 @@ export function FloatingDock() {
  */
 const DockVisibilityContext = createContext<{ setHidden: (hidden: boolean) => void } | null>(null);
 
-/** Call from a page's top-level Client Component to hide the floating dock while it's mounted. */
-export function useHideFloatingDock() {
+/**
+ * Call from a page's top-level Client Component to hide the floating dock
+ * while it's mounted. `hidden` (default true) lets a page that's public
+ * regardless of viewer identity — e.g. a shared /u/[username] profile —
+ * hide the dock only for the guest-viewer case, since Scan/Shelf/Collections
+ * are meaningless to someone who isn't signed in but useful to one who is.
+ */
+export function useHideFloatingDock(hidden: boolean = true) {
   const ctx = useContext(DockVisibilityContext);
   useEffect(() => {
+    if (!hidden) return;
     ctx?.setHidden(true);
     return () => ctx?.setHidden(false);
-  }, [ctx]);
+  }, [ctx, hidden]);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
