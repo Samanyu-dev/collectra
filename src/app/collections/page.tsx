@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getFranchiseAnalytics } from "@/lib/intelligence/feed/franchise-analytics";
 import { FranchiseAnalyticsHeader } from "@/components/ui/franchise-analytics-header";
+import { getSetProgressForUser } from "@/lib/collection/set-progress";
 import { getImagesForEntities } from "@/lib/media/resolve";
 import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 
@@ -78,31 +79,8 @@ export default async function CollectionsIndexPage(
   const setIds = sets.map((s) => s.id);
   const imagesBySet = await getImagesForEntities("Set", setIds);
 
-  // Per-set owned progress + value, for this page of sets only — one batched
-  // query rather than N+1 per tile. Mirrors the owned-value convention used
-  // by the dashboard and Set Insights (marketPriceUsd, falling back to
-  // purchasePrice when unpriced).
-  const progressBySet = new Map<string, { ownedCount: number; totalValueUsd: number }>();
-  if (currentUser) {
-    const owned = await prisma.instance.findMany({
-      where: { userId: currentUser.id, variant: { card: { setId: { in: setIds } } } },
-      select: {
-        purchasePrice: true,
-        variant: { select: { currentPrice: { select: { marketPriceUsd: true } }, card: { select: { id: true, setId: true } } } },
-      },
-    });
-    const ownedCardIdsBySet = new Map<string, Set<string>>();
-    for (const inst of owned) {
-      const setId = inst.variant.card.setId;
-      const entry = progressBySet.get(setId) ?? { ownedCount: 0, totalValueUsd: 0 };
-      const cardIds = ownedCardIdsBySet.get(setId) ?? new Set<string>();
-      cardIds.add(inst.variant.card.id);
-      ownedCardIdsBySet.set(setId, cardIds);
-      entry.totalValueUsd += inst.variant.currentPrice?.marketPriceUsd ?? inst.purchasePrice ?? 0;
-      entry.ownedCount = cardIds.size;
-      progressBySet.set(setId, entry);
-    }
-  }
+  // Per-set owned progress + value, for this page of sets only.
+  const progressBySet = currentUser ? await getSetProgressForUser(currentUser.id, setIds) : new Map();
 
   return (
     <div className="min-h-screen w-full pb-32">
