@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getImagesForEntities } from "@/lib/media/resolve";
@@ -104,6 +106,13 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
 
         <div className="relative z-10 w-full max-w-[1600px] mx-auto px-6 md:px-12 pb-12 flex flex-col md:flex-row items-end gap-8">
           <div className="flex-1 space-y-2">
+            <nav className="flex items-center gap-1.5 text-sm text-foreground/50" aria-label="Breadcrumb">
+              <Link href="/collections" className="hover:text-foreground transition-colors">Sets</Link>
+              <ChevronRight size={14} className="text-foreground/30" />
+              <Link href={`/collections?franchise=${set.series.franchise.id}`} className="hover:text-foreground transition-colors">{set.series.franchise.name}</Link>
+              <ChevronRight size={14} className="text-foreground/30" />
+              <span className="text-foreground/70 truncate">{set.name}</span>
+            </nav>
             <p className="text-primary font-mono text-sm tracking-widest uppercase">{set.series.franchise.name} • {set.series.brand.name} • {set.series.name}</p>
             <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground tracking-tight">{set.name}</h1>
           </div>

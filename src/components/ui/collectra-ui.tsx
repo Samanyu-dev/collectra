@@ -89,7 +89,7 @@ export function ProgressBar({
         />
       </div>
       {showLabel && (
-        <span className="text-xs text-muted-foreground font-mono min-w-[36px] text-right">
+        <span className="text-xs text-foreground/50 font-mono min-w-[36px] text-right">
           {Math.round(percentage)}%
         </span>
       )}
@@ -180,14 +180,14 @@ export function StatCard({
 }) {
   return (
     <motion.div
-      className="rounded-xl border border-border bg-card p-4 space-y-2"
+      className="rounded-2xl border border-foreground/10 bg-foreground/5 p-4 space-y-2"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: delay * 0.1 }}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground uppercase tracking-wider">{label}</span>
-        {icon && <span className="text-muted-foreground">{icon}</span>}
+        <span className="text-xs text-foreground/50 font-mono uppercase tracking-widest">{label}</span>
+        {icon && <span className="text-foreground/50">{icon}</span>}
       </div>
       <div className="flex items-baseline gap-2">
         <AnimatedNumber
@@ -220,9 +220,9 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-3">
-      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</h2>
+      <h2 className="text-sm font-mono text-foreground/50 uppercase tracking-widest">{title}</h2>
       {action && actionHref && (
-        <a href={actionHref} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <a href={actionHref} className="text-xs text-foreground/50 hover:text-foreground transition-colors">
           {action} →
         </a>
       )}

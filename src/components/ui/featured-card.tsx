@@ -70,7 +70,7 @@ export function FeaturedCard({ image, name, rarity, value }: FeaturedCardProps) 
         <div className="absolute -inset-4 bg-background/40 blur-2xl rounded-3xl transform translate-y-8 -z-10 opacity-60" />
         
         {/* Card Frame */}
-        <div className="relative w-full h-full rounded-2xl overflow-hidden border border-foreground/10 shadow-2xl bg-background">
+        <div className="foil-frame relative w-full h-full rounded-2xl overflow-hidden border border-foreground/10 shadow-2xl bg-background">
           <Image
             src={image}
             alt={name}

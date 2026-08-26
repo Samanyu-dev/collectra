@@ -3,7 +3,7 @@ import { recalculateUserMetrics } from "../metrics/calculate";
 import type { HealthFactors } from "../metrics/health-factors";
 import { generateInsights } from "../insights/generator";
 import { getPortfolioHistory, getPortfolioChangeToday, type PortfolioHistoryPoint, type PortfolioChangeToday } from "./portfolio-history";
-import { getCatalogTotals } from "../market/catalog-widgets";
+import { getCatalogTotals, getOwnedTopValuable, type CatalogCard } from "../market/catalog-widgets";
 import { groupEvents, type GroupedActivity } from "./activity";
 import { getImagesForEntities } from "@/lib/media/resolve";
 import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
@@ -71,6 +71,7 @@ export interface DashboardData {
   mostVolatile: VolatileEntry[];
   groupedActivity: GroupedActivity[];
   wishlistCount: number;
+  topOwnedValuable: CatalogCard[];
 }
 
 const INSTANCE_INCLUDE = {
@@ -142,8 +143,12 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       mostVolatile: [],
       groupedActivity,
       wishlistCount,
+      topOwnedValuable: [],
     };
   }
+
+  const ownedVariantIds = [...new Set(instances.map((i) => i.variantId))];
+  const topOwnedValuable = await getOwnedTopValuable(ownedVariantIds);
 
   // ─── Portfolio History (real day-by-day mark-to-market valuation) ───
   const portfolioHistory = await getPortfolioHistory(
@@ -320,5 +325,6 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     mostVolatile,
     groupedActivity,
     wishlistCount,
+    topOwnedValuable,
   };
 }

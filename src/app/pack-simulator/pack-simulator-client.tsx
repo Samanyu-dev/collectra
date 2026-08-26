@@ -65,16 +65,16 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8 min-h-[calc(100vh-4rem)] flex flex-col">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-bold tracking-tight flex items-center gap-3">
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight flex items-center gap-3">
           <Sparkles className="text-primary" /> Pack Simulator
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
+        <p className="text-foreground/50 mt-2 max-w-2xl">
           Simulates real, verified pull rates — only products with actual sourced odds appear here.
         </p>
       </motion.div>
 
       {products.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 text-muted-foreground">
+        <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 text-foreground/50">
           <PackageOpen size={48} className="opacity-20" />
           <p className="font-medium text-foreground">No products with verified pull rates yet</p>
           <p className="text-sm max-w-md">
@@ -91,7 +91,7 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
                   <button
                     key={product.id}
                     onClick={() => setSelectedProductId(product.id)}
-                    className={`p-4 rounded-xl border transition-all ${selectedProductId === product.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20 scale-105' : 'border-border bg-card hover:bg-muted/50'}`}
+                    className={`p-4 rounded-xl border transition-all ${selectedProductId === product.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20 scale-105' : 'border-foreground/10 bg-foreground/5 hover:bg-foreground/10'}`}
                   >
                     {product.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -119,7 +119,7 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
               <motion.div animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.1, 1] }} transition={{ duration: 0.5, repeat: Infinity }}>
                 <PackageOpen size={64} className="text-primary mb-4" />
               </motion.div>
-              <p className="text-lg font-medium animate-pulse text-muted-foreground">Tearing foil...</p>
+              <p className="text-lg font-medium animate-pulse text-foreground/50">Tearing foil...</p>
             </div>
           )}
 
@@ -135,7 +135,7 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
                       transition={{ duration: 0.6, delay: i * 0.15, type: 'spring' }}
                       className="flex flex-col items-center gap-2 w-32"
                     >
-                      <div className="w-28 aspect-[63/88] rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center p-2 text-center shadow-2xl">
+                      <div className={`w-28 aspect-[63/88] rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center p-2 text-center shadow-2xl ${pull.parallelName ? "foil-frame" : ""}`}>
                         <span className="text-[11px] text-foreground/70">{pull.cardName}</span>
                       </div>
                       {pull.parallelName && <span className="text-[10px] text-primary uppercase tracking-wide">{pull.parallelName}</span>}
@@ -146,7 +146,7 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
 
               <motion.button
                 onClick={() => setPulled([])}
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground bg-muted/50 px-6 py-3 rounded-full transition-colors font-medium"
+                className="flex items-center gap-2 text-foreground/50 hover:text-foreground bg-foreground/5 px-6 py-3 rounded-full transition-colors font-medium"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: pulled.length * 0.15 + 1 }}

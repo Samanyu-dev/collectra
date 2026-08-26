@@ -163,7 +163,7 @@ export function ScanClient() {
                   <div className="flex items-center gap-2 text-xs font-mono text-foreground/40 uppercase tracking-widest">
                     <span className="w-2 h-2 rounded-full bg-green-400" /> {result.confidenceLabel} confidence match
                   </div>
-                  <CandidateCard candidate={result.resolved} selected onSelect={() => setSelected(result.resolved)} />
+                  <CandidateCard candidate={result.resolved} selected highlight onSelect={() => setSelected(result.resolved)} />
                   <ExtractedTextNote result={result} />
                 </>
               ) : result.candidates.length > 0 ? (
@@ -293,13 +293,13 @@ function ExtractedTextNote({ result }: { result: IdentifyScanResponse }) {
   );
 }
 
-function CandidateCard({ candidate, selected, onSelect }: { candidate: EnrichedCandidate; selected: boolean; onSelect: () => void }) {
+function CandidateCard({ candidate, selected, highlight, onSelect }: { candidate: EnrichedCandidate; selected: boolean; highlight?: boolean; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}
       className={`w-full flex items-center gap-4 p-3 rounded-2xl border text-left transition-colors ${
         selected ? "border-primary bg-primary/5" : "border-foreground/10 bg-foreground/5 hover:bg-foreground/10"
-      }`}
+      } ${highlight ? "foil-frame" : ""}`}
     >
       <div className="w-14 h-20 relative rounded-lg overflow-hidden bg-foreground/10 shrink-0">
         {candidate.imageUrl ? (

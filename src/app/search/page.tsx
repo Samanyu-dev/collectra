@@ -129,7 +129,7 @@ export default function SearchPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 space-y-8">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="relative">
-        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={24} aria-hidden="true" />
+        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/50" size={24} aria-hidden="true" />
         <input
           ref={inputRef}
           type="text"
@@ -137,7 +137,7 @@ export default function SearchPage() {
           aria-expanded={hasResults}
           aria-controls="search-results-list"
           aria-label="Search across every card, set, and product" placeholder="Search across every card, set, and product..."
-          className="w-full bg-card border border-border rounded-2xl pl-12 pr-12 py-5 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-2xl pl-12 pr-12 py-5 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -147,7 +147,7 @@ export default function SearchPage() {
           <button
             onClick={() => { setQuery(''); inputRef.current?.focus(); }}
             aria-label="Clear search"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground transition-colors"
           >
             <X size={20} />
           </button>
@@ -163,7 +163,7 @@ export default function SearchPage() {
               aria-selected={filter === tab.key}
               onClick={() => setFilter(tab.key)}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                filter === tab.key ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                filter === tab.key ? 'bg-primary text-primary-foreground' : 'bg-foreground/5 border border-foreground/10 text-foreground/50 hover:text-foreground'
               }`}
             >
               {tab.label} <span className="opacity-60">({tab.count})</span>
@@ -177,15 +177,15 @@ export default function SearchPage() {
       )}
 
       {query.length >= 2 && !loading && !hasResults && (
-        <div className="text-center py-20 text-muted-foreground space-y-4">
+        <div className="text-center py-20 text-foreground/50 space-y-4">
           <SearchIcon size={40} className="mx-auto opacity-20" />
           <p className="text-lg">No results for &ldquo;{query}&rdquo;</p>
           <p className="text-sm max-w-sm mx-auto">Check the spelling, try a broader term, or browse instead.</p>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Link href="/collections" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium hover:border-primary/50 transition-colors">
+            <Link href="/collections" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium hover:border-primary/50 transition-colors">
               <Layers size={16} /> Browse Collections
             </Link>
-            <Link href="/explore" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium hover:border-primary/50 transition-colors">
+            <Link href="/explore" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium hover:border-primary/50 transition-colors">
               <Compass size={16} /> Explore
             </Link>
           </div>
@@ -196,7 +196,7 @@ export default function SearchPage() {
         <div id="search-results-list" role="listbox" className="space-y-10">
           {(filter === 'all' || filter === 'sets') && results.sets.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Sets</h2>
+              <h2 className="text-sm font-medium text-foreground/50 uppercase tracking-wider">Sets</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {results.sets.map((set: any) => {
                   const idx = nextRowIndex();
@@ -209,14 +209,14 @@ export default function SearchPage() {
                         onMouseEnter={() => setActiveIndex(idx)}
                         role="option"
                         aria-selected={active}
-                        className={`flex items-center gap-4 bg-card border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                        className={`flex items-center gap-4 bg-foreground/5 border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-foreground/10 hover:border-primary/50'}`}
                       >
                         <div className="w-12 h-12 rounded-lg bg-foreground/5 flex items-center justify-center shrink-0">
                           <PackageOpen size={18} className="text-foreground/30" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors"><HighlightMatch text={set.name} query={query} /></p>
-                          <p className="text-xs text-muted-foreground">{set.series?.franchise?.name}</p>
+                          <p className="text-xs text-foreground/50">{set.series?.franchise?.name}</p>
                         </div>
                       </Link>
                     </motion.div>
@@ -228,7 +228,7 @@ export default function SearchPage() {
 
           {(filter === 'all' || filter === 'cards') && results.cards.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Cards</h2>
+              <h2 className="text-sm font-medium text-foreground/50 uppercase tracking-wider">Cards</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {results.cards.map((card: any) => {
                   const idx = nextRowIndex();
@@ -242,14 +242,14 @@ export default function SearchPage() {
                         onMouseEnter={() => setActiveIndex(idx)}
                         role="option"
                         aria-selected={active}
-                        className={`flex items-center gap-4 bg-card border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                        className={`flex items-center gap-4 bg-foreground/5 border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-foreground/10 hover:border-primary/50'}`}
                       >
                         <div className="relative w-12 h-16 rounded-md overflow-hidden bg-foreground/5 shrink-0">
                           {image && <Image src={image.url} alt={card.name} fill className="object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors"><HighlightMatch text={card.name} query={query} /></p>
-                          <p className="text-xs text-muted-foreground font-mono">#{card.number} • {card.set?.name}</p>
+                          <p className="text-xs text-foreground/50 font-mono">#{card.number} • {card.set?.name}</p>
                         </div>
                       </Link>
                     </motion.div>
@@ -261,7 +261,7 @@ export default function SearchPage() {
 
           {(filter === 'all' || filter === 'products') && results.products.length > 0 && (
             <section className="space-y-4">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Sealed Products</h2>
+              <h2 className="text-sm font-medium text-foreground/50 uppercase tracking-wider">Sealed Products</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {results.products.map((product: any) => {
                   const idx = nextRowIndex();
@@ -275,7 +275,7 @@ export default function SearchPage() {
                         onMouseEnter={() => setActiveIndex(idx)}
                         role="option"
                         aria-selected={active}
-                        className={`flex items-center gap-4 bg-card border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                        className={`flex items-center gap-4 bg-foreground/5 border p-3 rounded-xl transition-colors group ${active ? 'border-primary/60 bg-primary/5' : 'border-foreground/10 hover:border-primary/50'}`}
                       >
                         <div className="relative w-12 h-12 rounded-md overflow-hidden bg-foreground/5 shrink-0 flex items-center justify-center">
                           {image ? <Image src={image.url} alt={product.name} fill className="object-contain" /> : <PackageOpen size={18} className="text-foreground/30" />}
@@ -300,10 +300,10 @@ export default function SearchPage() {
             {recents.length > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Recent Searches</h2>
+                  <h2 className="text-sm font-medium text-foreground/50 uppercase tracking-wider">Recent Searches</h2>
                   <button
                     onClick={() => { localStorage.removeItem(RECENTS_KEY); setRecents([]); }}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs text-foreground/50 hover:text-foreground transition-colors"
                   >
                     Clear
                   </button>
@@ -313,22 +313,22 @@ export default function SearchPage() {
                     <button
                       key={r}
                       onClick={() => setQuery(r)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border text-sm hover:border-primary/50 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/5 border border-foreground/10 text-sm hover:border-primary/50 transition-colors"
                     >
-                      <Clock size={13} className="text-muted-foreground" /> {r}
+                      <Clock size={13} className="text-foreground/50" /> {r}
                     </button>
                   ))}
                 </div>
               </section>
             )}
-            <section className="text-center py-16 text-muted-foreground space-y-4">
+            <section className="text-center py-16 text-foreground/50 space-y-4">
               <SearchIcon size={40} className="mx-auto opacity-20" />
               <p>Start typing to search across every card, set, and sealed product.</p>
               <div className="flex items-center justify-center gap-3 pt-2">
-                <Link href="/collections" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium hover:border-primary/50 transition-colors">
+                <Link href="/collections" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium hover:border-primary/50 transition-colors">
                   <Layers size={16} /> Browse Collections
                 </Link>
-                <Link href="/explore" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card border border-border text-sm font-medium hover:border-primary/50 transition-colors">
+                <Link href="/explore" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium hover:border-primary/50 transition-colors">
                   <Compass size={16} /> Explore
                 </Link>
               </div>

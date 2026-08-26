@@ -149,6 +149,26 @@ export async function getCatalogWidgets(): Promise<CatalogWidgets> {
   };
 }
 
+/**
+ * Top valuable cards scoped to what a specific user owns — one CurrentPrice
+ * query filtered to their owned variantIds (deduped, computed by the caller
+ * from an already-fetched Instance array so this doesn't re-query Instance).
+ * Reuses the same row-shaping as the catalog-wide widgets above; this is the
+ * "your collection" counterpart to getCatalogWidgets().topValuable.
+ */
+export async function getOwnedTopValuable(variantIds: string[], take = 10): Promise<CatalogCard[]> {
+  if (variantIds.length === 0) return [];
+
+  const rows = await prisma.currentPrice.findMany({
+    where: { variantId: { in: variantIds }, marketPriceUsd: { not: null } },
+    orderBy: { marketPriceUsd: "desc" },
+    take,
+    include: CARD_INCLUDE,
+  });
+
+  return toCatalogCards(rows);
+}
+
 // Exported alongside toCatalogCards/CARD_INCLUDE for set-widgets.ts's reuse.
 export function attachTrend(cards: CatalogCard[], rows: PricedVariantRow[]): MoverCard[] {
   const trendByVariant = new Map(rows.map((r) => [r.variantId, r.trend30dPercent]));

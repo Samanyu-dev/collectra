@@ -38,20 +38,23 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-bold tracking-tight flex items-center gap-3">
-          <Heart className="text-primary fill-primary/20" /> Wishlist
+        <p className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-2">
+          <Heart size={16} /> Wishlist
+        </p>
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+          Cards you're chasing
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
-          Cards you're hunting for. Tap the heart on any card to add it here.
+        <p className="text-foreground/50 mt-2 max-w-2xl">
+          Tap the heart on any card to add it here. Set a price alert and we'll flag it the moment it's within reach.
         </p>
       </motion.div>
 
       {items.length === 0 ? (
-        <div className="text-center py-32 text-muted-foreground border border-dashed border-border rounded-2xl bg-card/50">
+        <div className="text-center py-32 text-foreground/40 border border-dashed border-foreground/10 rounded-3xl bg-foreground/5">
           <Heart size={48} className="mx-auto mb-4 opacity-20" />
           <p className="font-medium text-foreground">Your wishlist is empty</p>
           <p className="text-sm mt-1 mb-6">Start tracking cards you want to acquire.</p>
-          <Link href="/cards" className="bg-foreground text-background px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors">
+          <Link href="/cards" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity">
             Browse Cards
           </Link>
         </div>
@@ -70,7 +73,9 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3, delay: i * 0.04 }}
-                  className="bg-card border border-border rounded-xl p-4 flex gap-4 hover:border-primary/50 transition-colors group relative"
+                  className={`bg-foreground/5 border border-foreground/10 rounded-2xl p-4 flex gap-4 hover:border-foreground/20 hover:bg-foreground/[0.07] transition-colors group relative ${
+                    item.alertTriggered ? "foil-frame" : ""
+                  }`}
                 >
                   <Link href={`/cards/${item.cardId}`} className="shrink-0 relative w-[100px] h-[140px] rounded-lg overflow-hidden bg-foreground/5">
                     {image ? (
@@ -87,7 +92,7 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
                       </Link>
                       <button
                         onClick={() => handleRemove(item.cardId)}
-                        className="opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 shrink-0"
+                        className="opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 transition-opacity text-foreground/40 hover:text-red-500 shrink-0"
                         aria-label="Remove from wishlist"
                         title="Remove from wishlist"
                       >
@@ -95,7 +100,7 @@ export function WishlistClient({ items: initialItems }: { items: WishlistItem[] 
                       </button>
                     </div>
 
-                    <p className="text-[10px] text-muted-foreground font-mono mb-3">#{item.number} • {item.setName}</p>
+                    <p className="text-[10px] text-foreground/40 font-mono mb-3">#{item.number} • {item.setName}</p>
 
                     <div className="mt-auto space-y-2">
                       <PriceTag data={item.price} />

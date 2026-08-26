@@ -52,11 +52,14 @@ export function ProjectsClient({ projects, availableSets }: { projects: ProjectI
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-bold tracking-tight flex items-center gap-3">
-            <BookOpen className="text-primary" /> Active Projects
+          <p className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-2">
+            <BookOpen size={16} /> Projects
+          </p>
+          <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+            Set-completion goals
           </h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl">
-            Set-completion goals tracked against your real collection.
+          <p className="text-foreground/50 mt-2 max-w-2xl">
+            Tracked against your real collection, not a checklist you have to update by hand.
           </p>
         </div>
         <button
@@ -68,7 +71,7 @@ export function ProjectsClient({ projects, availableSets }: { projects: ProjectI
       </motion.div>
 
       {showPicker && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-card border border-border rounded-2xl p-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-foreground/5 border border-foreground/10 rounded-3xl p-6 flex flex-col md:flex-row gap-4 items-stretch md:items-center">
           <select
             value={selectedSetId}
             onChange={(e) => setSelectedSetId(e.target.value)}
@@ -91,7 +94,7 @@ export function ProjectsClient({ projects, availableSets }: { projects: ProjectI
       )}
 
       {projects.length === 0 ? (
-        <div className="text-center py-32 text-muted-foreground border border-dashed border-border rounded-2xl bg-card/50">
+        <div className="text-center py-32 text-foreground/40 border border-dashed border-foreground/10 rounded-3xl bg-foreground/5">
           <Target size={48} className="mx-auto mb-4 opacity-20" />
           <p className="font-medium text-foreground">No active projects</p>
           <p className="text-sm mt-1">Start a set-completion project to track your progress toward finishing a checklist.</p>
@@ -104,11 +107,13 @@ export function ProjectsClient({ projects, availableSets }: { projects: ProjectI
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="bg-card border border-border rounded-2xl p-6 hover:border-primary/50 transition-colors group relative"
+              className={`bg-foreground/5 border border-foreground/10 rounded-3xl p-6 hover:border-primary/50 transition-colors group relative ${
+                project.progress >= 90 ? "foil-frame" : ""
+              }`}
             >
               <button
                 onClick={() => handleDelete(project.id)}
-                className="absolute top-4 right-4 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
+                className="absolute top-4 right-4 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100 transition-opacity text-foreground/40 hover:text-red-400"
                 aria-label="Delete project"
                 title="Delete project"
               >
@@ -118,16 +123,16 @@ export function ProjectsClient({ projects, availableSets }: { projects: ProjectI
               <div className="flex items-start justify-between mb-4 pr-8">
                 <div>
                   <h2 className="text-xl font-bold mb-1">{project.name}</h2>
-                  {project.setName && <p className="text-sm text-muted-foreground">{project.setName}</p>}
+                  {project.setName && <p className="text-sm text-foreground/50">{project.setName}</p>}
                 </div>
-                <div className="bg-muted px-3 py-1 rounded-full text-xs font-medium capitalize shrink-0">
+                <div className="bg-foreground/10 px-3 py-1 rounded-full text-xs font-medium capitalize shrink-0 text-foreground/70">
                   {project.type.replace('_', ' ').toLowerCase()}
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="font-mono text-muted-foreground">{project.cardsAcquired} / {project.total} Cards</span>
+                  <span className="font-mono text-foreground/50">{project.cardsAcquired} / {project.total} Cards</span>
                   <span className="font-bold">{project.progress}%</span>
                 </div>
                 <ProgressBar value={project.progress} color="var(--primary)" height={6} />

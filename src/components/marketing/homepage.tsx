@@ -214,9 +214,9 @@ function PricingTeaser() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="p-8 rounded-3xl bg-primary/5 border border-primary/30 relative"
+            className="foil-frame p-8 rounded-3xl bg-primary/5 border border-primary/30 relative"
           >
-            <div className="absolute -top-3 left-8 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1">
+            <div className="absolute -top-3 left-8 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1 z-20">
               <Sparkles size={12} /> Pro
             </div>
             <h3 className="font-display font-bold text-lg mb-1">Pro</h3>

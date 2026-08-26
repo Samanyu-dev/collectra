@@ -22,6 +22,10 @@ interface VaultItem {
 }
 
 export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; totalVaultValue: number }) {
+  const crownJewelId = items.length > 0
+    ? items.reduce((best, i) => (i.estimatedValue > best.estimatedValue ? i : best), items[0]).instanceId
+    : null;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Museum Lighting Effect */}
@@ -77,7 +81,9 @@ export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; to
                     <div className="absolute inset-0 bg-gradient-to-b from-foreground/5 to-transparent blur-3xl -z-10 rounded-full scale-150 opacity-30" />
 
                     <Link href={`/cards/${item.cardId}`}>
-                      <div className="relative group cursor-pointer w-[280px] aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-foreground/10 bg-foreground/5">
+                      <div className={`relative group cursor-pointer w-[280px] aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-foreground/10 bg-foreground/5 ${
+                        item.instanceId === crownJewelId ? "foil-frame" : ""
+                      }`}>
                         {image ? (
                           <Image src={image.url} alt={item.name} fill className="object-cover" sizes="280px" />
                         ) : (
@@ -99,6 +105,7 @@ export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; to
                       <p className="text-xs font-mono text-foreground/50 tracking-widest uppercase flex items-center justify-center md:justify-start gap-2">
                         Exhibit {String(i + 1).padStart(2, '0')}
                         {item.isFavorite && <Star size={12} className="fill-current text-yellow-400" />}
+                        {item.instanceId === crownJewelId && <span className="text-foreground/70">• Crown Jewel</span>}
                       </p>
                       <h2 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-light tracking-tight text-foreground/90">
                         {item.name}

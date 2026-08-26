@@ -28,17 +28,29 @@ function Stars({ tier }: { tier: RarityTier }) {
   );
 }
 
-export function TopValuableCardsSection({ cards, scopeLabel = "Catalog-wide" }: { cards: CatalogCard[]; scopeLabel?: string }) {
+export function TopValuableCardsSection({
+  cards,
+  scopeLabel = "Catalog-wide",
+  title = "Top Valuable Cards",
+  emptyLabel = "No priced cards yet.",
+  highlightTop = true,
+}: {
+  cards: CatalogCard[];
+  scopeLabel?: string;
+  title?: string;
+  emptyLabel?: string;
+  highlightTop?: boolean;
+}) {
   return (
     <section>
       <div className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-4">
-        <Trophy size={16} /> Top Valuable Cards
+        <Trophy size={16} /> {title}
         <span className="text-[10px] text-foreground/30 normal-case tracking-normal ml-1">{scopeLabel}</span>
       </div>
 
       {cards.length === 0 ? (
         <div className="p-12 rounded-3xl border border-foreground/10 border-dashed text-center text-foreground/40">
-          No priced cards yet.
+          {emptyLabel}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -46,7 +58,9 @@ export function TopValuableCardsSection({ cards, scopeLabel = "Catalog-wide" }: 
             <Link
               key={card.variantId}
               href={`/cards/${card.cardId}`}
-              className="group relative rounded-2xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/20 transition-colors overflow-hidden"
+              className={`group relative rounded-2xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/20 transition-colors overflow-hidden ${
+                highlightTop && i === 0 ? "foil-frame" : ""
+              }`}
             >
               <div className="aspect-[63/88] relative bg-foreground/10">
                 {card.imageUrl && <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" />}

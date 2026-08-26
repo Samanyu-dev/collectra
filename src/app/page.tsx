@@ -71,6 +71,7 @@ async function IntelligenceFeed({ userId }: { userId: string }) {
       mostVolatile,
       groupedActivity,
       wishlistCount,
+      topOwnedValuable,
     },
     { gainers, losers, recentlyPriced, topValuable },
   ] = await Promise.all([getDashboardData(userId), getCatalogWidgets()]);
@@ -163,6 +164,14 @@ async function IntelligenceFeed({ userId }: { userId: string }) {
           </div>
         )}
       </section>
+
+      {/* Level 2.5: Top Cards You Own — the collection's own highlight reel */}
+      <TopValuableCardsSection
+        cards={topOwnedValuable}
+        scopeLabel="Your collection"
+        title="Top Cards You Own"
+        emptyLabel="Nothing priced yet — add cards to your collection to see your most valuable pulls here."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Level 3: The Intelligence Stream (Insights) */}
@@ -321,8 +330,8 @@ async function IntelligenceFeed({ userId }: { userId: string }) {
         </div>
       </div>
 
-      {/* Level 6: Top Valuable Cards — catalog-wide */}
-      <TopValuableCardsSection cards={topValuable} />
+      {/* Level 6: Top Valuable Cards — catalog-wide, for market context */}
+      <TopValuableCardsSection cards={topValuable} title="Trending in the Catalog" highlightTop={false} />
 
     </div>
   );

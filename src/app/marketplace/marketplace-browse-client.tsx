@@ -61,11 +61,14 @@ export function MarketplaceBrowseClient({
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-bold tracking-tight">
-            Marketplace
+          <p className="flex items-center gap-2 text-foreground/50 text-sm font-mono uppercase tracking-widest mb-2">
+            <Tag size={16} /> Marketplace
+          </p>
+          <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+            {total.toLocaleString()} cards, listed by collectors
           </h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl">
-            Cards other collectors are listing — {total.toLocaleString()} active. Deals happen between you and the seller directly.
+          <p className="text-foreground/50 mt-2 max-w-2xl">
+            Deals happen between you and the seller directly — Collectra doesn't touch the money.
           </p>
         </div>
         <Link
@@ -78,19 +81,19 @@ export function MarketplaceBrowseClient({
 
       <div className="flex flex-col sm:flex-row gap-3">
         <form onSubmit={handleSearch} className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={18} />
           <input
             type="text"
             aria-label="Search listings by card name"
             placeholder="Search by card name..."
-            className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+            className="w-full bg-foreground/5 border border-foreground/10 rounded-full pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </form>
         <select
           aria-label="Filter by shipping region"
-          className="bg-card border border-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="bg-foreground/5 border border-foreground/10 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
           value={shipsTo}
           onChange={(e) => router.push(buildUrl({ shipsTo: e.target.value }))}
         >
@@ -124,7 +127,7 @@ export function MarketplaceBrowseClient({
               </div>
               <div className="mt-2 space-y-0.5">
                 <p className="text-sm font-medium line-clamp-1">{item.cardName}</p>
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                <div className="flex items-center justify-between text-[10px] text-foreground/50 font-mono">
                   <span>#{item.cardNumber} · {item.setName}</span>
                 </div>
                 <p className="text-[10px] text-foreground/40">{item.condition}{item.grade ? ` · ${item.grade}` : ''}</p>
@@ -135,7 +138,7 @@ export function MarketplaceBrowseClient({
       </div>
 
       {items.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground">
+        <div className="text-center py-20 text-foreground/40 border border-dashed border-foreground/10 rounded-3xl bg-foreground/5">
           <Tag size={48} className="mx-auto mb-4 opacity-20" />
           <p>No listings found.</p>
         </div>
@@ -148,7 +151,7 @@ export function MarketplaceBrowseClient({
               Previous
             </Link>
           )}
-          <span className="text-sm text-muted-foreground font-mono">Page {page} of {totalPages}</span>
+          <span className="text-sm text-foreground/50 font-mono">Page {page} of {totalPages}</span>
           {page < totalPages && (
             <Link href={buildUrl({ page: page + 1 })} className="px-5 py-2.5 rounded-full bg-foreground/5 hover:bg-foreground/10 text-sm transition-colors">
               Next

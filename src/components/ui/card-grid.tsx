@@ -66,6 +66,7 @@ export function CardGrid({
   const [sortBy, setSortBy] = useState<'number' | 'price' | 'name' | 'owned'>('number');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [cardTypeFilter, setCardTypeFilter] = useState('');
+  const [ownershipFilter, setOwnershipFilter] = useState<'all' | 'owned' | 'not-owned'>('all');
   const [justPulled, setJustPulled] = useState<Record<string, boolean>>({});
 
   function quantityFor(card: CardGridCard) {
@@ -107,6 +108,12 @@ export function CardGrid({
       result = result.filter((c) => c.cardType === cardTypeFilter);
     }
 
+    if (ownershipFilter === 'owned') {
+      result = result.filter((c) => quantityFor(c) > 0);
+    } else if (ownershipFilter === 'not-owned') {
+      result = result.filter((c) => quantityFor(c) === 0);
+    }
+
     // Sort
     result.sort((a, b) => {
       let cmp = 0;
@@ -130,7 +137,7 @@ export function CardGrid({
     });
 
     return result;
-  }, [cardTypeFilter, initialCards, search, sortBy, sortOrder]);
+  }, [cardTypeFilter, initialCards, ownershipFilter, search, sortBy, sortOrder]);
 
   return (
     <div className="space-y-8">
@@ -148,7 +155,18 @@ export function CardGrid({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 w-full lg:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 w-full lg:w-auto">
+          <SmartSelect
+            value={ownershipFilter}
+            onChange={(value) => setOwnershipFilter(value as typeof ownershipFilter)}
+            ariaLabel="Filter by ownership"
+            className="w-full sm:w-44"
+            options={[
+              { value: 'all', label: 'Owned & not owned' },
+              { value: 'owned', label: 'Owned only' },
+              { value: 'not-owned', label: 'Not owned only' },
+            ]}
+          />
           <SmartSelect
             value={cardTypeFilter}
             onChange={setCardTypeFilter}

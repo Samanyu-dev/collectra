@@ -137,15 +137,27 @@ export async function getImagesForEntities(entityType: string, entityIds: string
     include: { media: true },
   });
 
-  const resolved = await Promise.all(
+  const settled = await Promise.allSettled(
     attachments
       .filter((a) => a.media.status === "READY")
       .map(async (a) => ({ entityId: a.entityId, image: { url: await mediaUrl(a.media), type: a.usage } }))
   );
-  for (const { entityId, image } of resolved) {
+  let failures = 0;
+  for (const s of settled) {
+    if (s.status === "rejected") {
+      failures++;
+      continue;
+    }
+    const { entityId, image } = s.value;
     const list = result.get(entityId) ?? [];
     list.push(image);
     result.set(entityId, list);
+  }
+  // One provider being down (e.g. a paused Appwrite project) shouldn't take
+  // down every page that resolves images for entities backed by other
+  // storage adapters — log once instead of crashing the whole batch.
+  if (failures > 0) {
+    console.warn(`getImagesForEntities: ${failures}/${settled.length} image URL(s) failed to resolve for ${entityType}`);
   }
 
   return result;

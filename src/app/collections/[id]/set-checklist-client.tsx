@@ -76,8 +76,19 @@ export function SetChecklistClient({
     });
   }
 
+  const isComplete = effectiveCards.length > 0 && ownedCount === effectiveCards.length;
+
   return (
     <div className="space-y-4">
+      {isComplete && (
+        <div className="foil-frame rounded-3xl bg-foreground/5 border border-foreground/10 px-6 py-5 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs font-mono uppercase tracking-widest text-foreground/50 mb-1">Set complete</p>
+            <p className="text-lg font-display font-bold">Every card in this set, accounted for.</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-4 text-foreground/50 font-mono">
         <span className="text-primary">{ownedCount} / {effectiveCards.length} Owned</span>
         <span>•</span>

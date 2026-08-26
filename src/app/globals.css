@@ -268,6 +268,35 @@
     mask-composite: exclude;
     animation: rarity-rainbow-spin 3s linear infinite;
   }
+
+  /* ─── Foil Frame ────────────────────────────────────────────────────
+     The site's signature: a slow-spinning holo-foil border, same
+     mechanism as .rarity-glow-unique above but decoupled from rarity
+     classification — used to mark "the one that matters" wherever that
+     applies outside the card grid (a #1 ranked card, the Pro tier). Use
+     sparingly; it reads as ceremony, not decoration. */
+  .foil-frame {
+    position: relative;
+  }
+  .foil-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+    background: conic-gradient(from var(--rarity-angle, 0deg), #ff5f6d, #ffc371, #4ade80, #60a5fa, #c084fc, #ff5f6d);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: rarity-rainbow-spin 5s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .foil-frame::after {
+      animation: none;
+    }
+  }
 }
 
 @property --rarity-angle {

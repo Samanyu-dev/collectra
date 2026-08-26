@@ -5,6 +5,8 @@ import { Search } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getFranchiseAnalytics } from "@/lib/intelligence/feed/franchise-analytics";
 import { FranchiseAnalyticsHeader } from "@/components/ui/franchise-analytics-header";
+import { getImagesForEntities } from "@/lib/media/resolve";
+import { pickPrimaryImage } from "@/lib/media/pick-primary-image";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +35,9 @@ export default async function CollectionsIndexPage(
     }
   });
 
-  // Collection Analytics header — only when a franchise is selected and the
-  // visitor is logged in (this page itself is public/auth-optional).
-  const currentUser = selectedFranchise ? await getCurrentUser() : null;
+  // This page is public/auth-optional — per-set owned progress and the
+  // Collection Analytics header both need a user, but only when logged in.
+  const currentUser = await getCurrentUser();
   const franchiseAnalytics = currentUser && selectedFranchise ? await getFranchiseAnalytics(currentUser.id, selectedFranchise) : null;
 
   // Determine which sets to fetch
@@ -63,6 +65,8 @@ export default async function CollectionsIndexPage(
             brand: true
           }
         },
+        releases: { orderBy: { date: 'asc' }, take: 1, select: { date: true } },
+        _count: { select: { cards: true } },
       }
     }),
     prisma.set.count({
@@ -71,6 +75,34 @@ export default async function CollectionsIndexPage(
   ]);
 
   const totalPages = Math.ceil(totalSets / limit);
+  const setIds = sets.map((s) => s.id);
+  const imagesBySet = await getImagesForEntities("Set", setIds);
+
+  // Per-set owned progress + value, for this page of sets only — one batched
+  // query rather than N+1 per tile. Mirrors the owned-value convention used
+  // by the dashboard and Set Insights (marketPriceUsd, falling back to
+  // purchasePrice when unpriced).
+  const progressBySet = new Map<string, { ownedCount: number; totalValueUsd: number }>();
+  if (currentUser) {
+    const owned = await prisma.instance.findMany({
+      where: { userId: currentUser.id, variant: { card: { setId: { in: setIds } } } },
+      select: {
+        purchasePrice: true,
+        variant: { select: { currentPrice: { select: { marketPriceUsd: true } }, card: { select: { id: true, setId: true } } } },
+      },
+    });
+    const ownedCardIdsBySet = new Map<string, Set<string>>();
+    for (const inst of owned) {
+      const setId = inst.variant.card.setId;
+      const entry = progressBySet.get(setId) ?? { ownedCount: 0, totalValueUsd: 0 };
+      const cardIds = ownedCardIdsBySet.get(setId) ?? new Set<string>();
+      cardIds.add(inst.variant.card.id);
+      ownedCardIdsBySet.set(setId, cardIds);
+      entry.totalValueUsd += inst.variant.currentPrice?.marketPriceUsd ?? inst.purchasePrice ?? 0;
+      entry.ownedCount = cardIds.size;
+      progressBySet.set(setId, entry);
+    }
+  }
 
   return (
     <div className="min-h-screen w-full pb-32">
@@ -136,28 +168,58 @@ export default async function CollectionsIndexPage(
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-              {sets.map(set => (
-                <Link 
-                  key={set.id} 
+              {sets.map(set => {
+                const image = pickPrimaryImage(imagesBySet.get(set.id) ?? []);
+                const releaseDate = set.releases[0]?.date ?? null;
+                const isUpcoming = releaseDate != null && releaseDate.getTime() > Date.now();
+                const total = set.printedTotal || set._count.cards || 0;
+                const progress = currentUser ? progressBySet.get(set.id) ?? { ownedCount: 0, totalValueUsd: 0 } : null;
+                const percentOwned = progress && total > 0 ? Math.round((progress.ownedCount / total) * 100) : 0;
+                return (
+                <Link
+                  key={set.id}
                   href={`/collections/${set.id}`}
-                  className="group flex flex-col gap-3"
+                  className={`group flex flex-col gap-3 ${isUpcoming ? 'opacity-50 hover:opacity-80' : ''} transition-opacity`}
                 >
                   <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-foreground/5 border border-foreground/10 group-hover:border-foreground/20 transition-colors shadow-lg group-hover:shadow-xl flex items-center justify-center p-6">
-                    <div className="text-foreground/20 font-display text-4xl font-bold uppercase tracking-widest text-center">
-                      {set.series.franchise.name.substring(0,3)}
-                    </div>
+                    {image ? (
+                      <Image src={image.url} alt={set.name} fill className="object-contain p-6" sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 16vw" />
+                    ) : (
+                      <div className="text-foreground/20 font-display text-4xl font-bold uppercase tracking-widest text-center">
+                        {set.series.franchise.name.substring(0,3)}
+                      </div>
+                    )}
+                    {releaseDate && (
+                      <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-background/80 backdrop-blur text-[10px] font-mono text-foreground/60">
+                        {releaseDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                    {progress && percentOwned > 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-background/60">
+                        <div className="h-full bg-primary" style={{ width: `${percentOwned}%` }} />
+                      </div>
+                    )}
                   </div>
-                  
+
                   <div>
                     <h3 className="text-foreground font-medium truncate group-hover:text-primary transition-colors" title={set.name}>{set.name}</h3>
-                    <div className="flex items-center gap-2 text-xs text-foreground/40 font-mono mt-1">
-                      <span className="truncate">{set.series.name}</span>
-                      <span>•</span>
-                      <span>{set.printedTotal || 0} Cards</span>
-                    </div>
+                    {progress ? (
+                      <div className="flex items-center gap-2 text-xs text-foreground/40 font-mono mt-1">
+                        <span>{progress.ownedCount} / {total} owned</span>
+                        <span>•</span>
+                        <span>${progress.totalValueUsd.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-foreground/40 font-mono mt-1">
+                        <span className="truncate">{set.series.name}</span>
+                        <span>•</span>
+                        <span>{total} Cards</span>
+                      </div>
+                    )}
                   </div>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

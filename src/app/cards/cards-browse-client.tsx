@@ -44,21 +44,21 @@ export function CardsBrowseClient({
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-display)] font-bold tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
           Card Database
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl">
+        <p className="text-foreground/50 mt-2 max-w-2xl">
           Every card ingested into the Universal Graph — {total.toLocaleString()} total.
         </p>
       </motion.div>
 
       <form onSubmit={handleSearch} className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" size={18} />
         <input
           type="text"
           aria-label="Search cards"
           placeholder="Search number, player, team, insert, set..."
-          className="w-full bg-card border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-full pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -94,7 +94,7 @@ export function CardsBrowseClient({
                 </div>
                 <div className="mt-2 space-y-0.5">
                   <p className="text-sm font-medium line-clamp-1">{card.name}</p>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                  <div className="flex items-center justify-between text-[10px] text-foreground/50 font-mono">
                     <span>#{card.number} • {card.franchiseName}</span>
                     {card.price.valueUsd != null && <PriceTag compact data={card.price} />}
                   </div>
@@ -106,7 +106,7 @@ export function CardsBrowseClient({
       </div>
 
       {items.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground">
+        <div className="text-center py-20 text-foreground/50">
           <Search size={48} className="mx-auto mb-4 opacity-20" />
           <p>No cards found matching your search.</p>
         </div>
@@ -119,7 +119,7 @@ export function CardsBrowseClient({
               Previous
             </Link>
           )}
-          <span className="text-sm text-muted-foreground font-mono">Page {page} of {totalPages}</span>
+          <span className="text-sm text-foreground/50 font-mono">Page {page} of {totalPages}</span>
           {page < totalPages && (
             <Link href={`/cards?page=${page + 1}${query ? `&q=${encodeURIComponent(query)}` : ''}`} className="px-5 py-2.5 rounded-full bg-foreground/5 hover:bg-foreground/10 text-sm transition-colors">
               Next
