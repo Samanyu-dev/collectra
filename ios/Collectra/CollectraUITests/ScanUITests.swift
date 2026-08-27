@@ -117,6 +117,7 @@ final class ScanUITests: XCTestCase {
     // MARK: - Shared helpers (duplicated from CollectraUITests/Phase5CollectionUITests by this codebase's own convention — each UI test file is self-contained)
 
     private func ensureSignedOut(_ app: XCUIApplication) throws {
+        dismissOnboardingIfPresent(app)
         guard app.tabBars.buttons["Home"].waitForExistence(timeout: 3) else { return }
         tapTab("Profile", in: app)
         let signOutButton = app.buttons["Sign Out"]
@@ -124,6 +125,15 @@ final class ScanUITests: XCTestCase {
             signOutButton.tap()
         }
         XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 40), "Could not reach a signed-out state before starting the test")
+    }
+
+    /// See `CollectraUITests`'s identical helper's doc comment.
+    private func dismissOnboardingIfPresent(_ app: XCUIApplication) {
+        if app.buttons["Skip"].waitForExistence(timeout: 3) {
+            app.buttons["Skip"].tap()
+        } else if app.buttons["Get Started"].waitForExistence(timeout: 2) {
+            app.buttons["Get Started"].tap()
+        }
     }
 
     private func tapTab(_ name: String, in app: XCUIApplication) {
@@ -147,6 +157,15 @@ final class ScanUITests: XCTestCase {
             passwordField.typeText(Self.password)
 
             app.buttons["Sign In"].tap()
+            // See `CollectraUITests.dismissSavePasswordPromptIfPresent`'s doc
+            // comment — the system "Save Password?" sheet sits on top of the
+            // app and swallows subsequent taps (e.g. the Scan tab) until
+            // dismissed. Missing here was the actual cause of this test
+            // landing on a stale screen instead of ever reaching Scan.
+            let notNow = app.buttons["Not Now"]
+            if notNow.waitForExistence(timeout: 5) {
+                notNow.tap()
+            }
         }
     }
 }

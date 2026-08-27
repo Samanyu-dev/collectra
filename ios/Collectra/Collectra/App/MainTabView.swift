@@ -2,9 +2,12 @@ import SwiftUI
 
 /// The app's tab shell. `TabRouter` lets a screen in one tab (e.g. Shelf's
 /// empty state) switch to another (Catalog) — the one piece of shared
-/// app-shell state that needs to live above any single tab.
+/// app-shell state that needs to live above any single tab. Owned by
+/// `RootView` (not here) and handed down via environment, so it survives
+/// RootView's theme-switch `.id()` reset instead of resetting
+/// `selectedTab` back to Home every time — see RootView's doc comment.
 struct MainTabView: View {
-    @StateObject private var tabRouter = TabRouter()
+    @EnvironmentObject private var tabRouter: TabRouter
 
     var body: some View {
         TabView(selection: $tabRouter.selectedTab) {
@@ -28,7 +31,6 @@ struct MainTabView: View {
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
                 .tag(AppTab.profile)
         }
-        .environmentObject(tabRouter)
         .tint(Theme.Color_.foreground)
         .preferredColorScheme(.dark)
     }

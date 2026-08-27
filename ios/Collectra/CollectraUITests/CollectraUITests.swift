@@ -153,6 +153,7 @@ final class CollectraUITests: XCTestCase {
     /// need to start from Sign In call this first rather than assuming a
     /// clean slate, so the suite doesn't depend on run order.
     private func ensureSignedOut(_ app: XCUIApplication) throws {
+        dismissOnboardingIfPresent(app)
         guard app.tabBars.buttons["Home"].waitForExistence(timeout: 3) else { return }
         tapProfileTab(app)
         let signOutButton = app.buttons["Sign Out"]
@@ -322,6 +323,20 @@ final class CollectraUITests: XCTestCase {
     /// on top of the app and swallows subsequent taps (e.g. the Profile tab)
     /// until dismissed. Not something this app's own code controls or can
     /// suppress; a real iOS user would just tap "Not Now"/"Save" themselves.
+    /// A fresh app container (first launch, or after a UI test wiped
+    /// `UserDefaults`/reinstalled the app) shows the first-run onboarding
+    /// carousel before Sign In — added this session, see `OnboardingView`.
+    /// Every test that expects to land on Sign In immediately needs to skip
+    /// past it first; harmless no-op once `hasCompletedOnboarding` is set
+    /// (persists across launches within the same app container).
+    private func dismissOnboardingIfPresent(_ app: XCUIApplication) {
+        if app.buttons["Skip"].waitForExistence(timeout: 3) {
+            app.buttons["Skip"].tap()
+        } else if app.buttons["Get Started"].waitForExistence(timeout: 2) {
+            app.buttons["Get Started"].tap()
+        }
+    }
+
     private func dismissSavePasswordPromptIfPresent(_ app: XCUIApplication) {
         let notNow = app.buttons["Not Now"]
         if notNow.waitForExistence(timeout: 5) {

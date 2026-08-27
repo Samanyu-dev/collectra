@@ -6,8 +6,10 @@ import XCTest
 /// card to a known state before a golden-path run) and for independently
 /// cross-checking server state after a UI-driven mutation — every actual
 /// assertion about app behavior still goes through real UI taps against
-/// `XCUIApplication`, never through this client.
-private enum RealBackend {
+/// `XCUIApplication`, never through this client. Internal (not
+/// file-private) so `SetsHomeThemeUITests` reuses it too instead of a
+/// second copy of the same fixture-setup client.
+enum RealBackend {
     static let apiBaseURL = URL(string: "http://localhost:3000")!
     static let supabaseURL = URL(string: "https://fnynunzvwvfgiucemmeo.supabase.co")!
     static let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZueW51bnp2d3ZmZ2l1Y2VtbWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDY2MzUsImV4cCI6MjEwMDIyMjYzNX0.oDQl-94WIHgNb_c0d6ppAkR76q8DDvm70MjXSpjsXsE"
@@ -480,6 +482,7 @@ final class Phase5CollectionUITests: XCTestCase {
     }
 
     private func ensureSignedOut(_ app: XCUIApplication) throws {
+        dismissOnboardingIfPresent(app)
         guard app.tabBars.buttons["Home"].waitForExistence(timeout: 3) else { return }
         tapTab("Profile", in: app)
         let signOutButton = app.buttons["Sign Out"]
@@ -487,6 +490,15 @@ final class Phase5CollectionUITests: XCTestCase {
             signOutButton.tap()
         }
         XCTAssertTrue(app.buttons["Sign In"].waitForExistence(timeout: 40), "Could not reach a signed-out state before starting the test")
+    }
+
+    /// See `CollectraUITests`'s identical helper's doc comment.
+    private func dismissOnboardingIfPresent(_ app: XCUIApplication) {
+        if app.buttons["Skip"].waitForExistence(timeout: 3) {
+            app.buttons["Skip"].tap()
+        } else if app.buttons["Get Started"].waitForExistence(timeout: 2) {
+            app.buttons["Get Started"].tap()
+        }
     }
 
     private func signIn(_ app: XCUIApplication, email: String, password: String) throws {

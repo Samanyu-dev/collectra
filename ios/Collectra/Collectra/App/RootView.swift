@@ -7,6 +7,14 @@ struct RootView: View {
     @EnvironmentObject private var session: SessionManager
     @StateObject private var themeManager = ThemeManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    // Declared here, outside the `.id()` reset boundary below, and handed
+    // to MainTabView via environment (not created inside it) — so a theme
+    // switch's full-tree reset recreates every *view* under `.id()` but
+    // keeps this same TabRouter instance, meaning `selectedTab` survives
+    // the reset instead of snapping back to Home. Caught by
+    // `SetsHomeThemeUITests.testAppearancePickerSwitchesThemeWithoutLosingState`
+    // landing on the wrong tab before this fix.
+    @StateObject private var tabRouter = TabRouter()
 
     var body: some View {
         Group {
@@ -21,6 +29,7 @@ struct RootView: View {
                 }
             case .signedIn:
                 MainTabView()
+                    .environmentObject(tabRouter)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: session.state)
@@ -29,6 +38,17 @@ struct RootView: View {
         // why a hard cut here beats threading `@Environment` through every
         // existing `Theme.Color_` call site.
         .id(themeManager.selection)
+        // `tabRouter` living on RootView (not MainTabView) is what makes it
+        // survive that `.id()` reset — but it means a sign-out/sign-in pair
+        // within the same process no longer gets a fresh instance either,
+        // so without this a user who signs out from Profile lands right
+        // back on Profile after signing back in instead of Home. Caught by
+        // `ScanUITests` unexpectedly landing on Profile post-sign-in.
+        .onChange(of: session.state) { _, newState in
+            if case .signedIn = newState {
+                tabRouter.selectedTab = .home
+            }
+        }
     }
 }
 

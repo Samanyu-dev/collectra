@@ -62,6 +62,7 @@ struct HomeView: View {
             Text(summary.portfolioValueUsd, format: .currency(code: "USD"))
                 .font(Theme.Typography.display(34))
                 .foregroundStyle(Theme.Color_.foreground)
+                .accessibilityIdentifier("home-portfolio-value")
 
             if let change = summary.changeToday {
                 HStack(spacing: 4) {
@@ -96,6 +97,7 @@ struct HomeView: View {
                             TopValuableCardCell(card: card, isTopRanked: index == 0)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("home-top-valuable-cell")
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -129,6 +131,7 @@ struct HomeView: View {
                             .foregroundStyle(Theme.Color_.textTertiary)
                     }
                     .padding(Theme.Spacing.md)
+                    .accessibilityIdentifier("home-activity-row")
                     if entry.id != activity.last?.id {
                         Divider().background(Theme.Color_.border)
                     }
