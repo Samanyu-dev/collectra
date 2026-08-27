@@ -23,13 +23,13 @@ function useRedirectAction(action: () => Promise<{ url: string }>) {
   return { run, isPending, error };
 }
 
-export function UpgradeButton({ className }: { className?: string }) {
-  const { run, isPending, error } = useRedirectAction(createCheckoutSession);
+export function UpgradeButton({ tier, label, className }: { tier: "plus" | "pro"; label: string; className?: string }) {
+  const { run, isPending, error } = useRedirectAction(() => createCheckoutSession(tier));
   return (
     <div className="space-y-2">
       <button onClick={run} disabled={isPending} className={className}>
         {isPending ? <Loader2 size={16} className="animate-spin" /> : null}
-        {isPending ? "Redirecting…" : "Upgrade to Pro"}
+        {isPending ? "Redirecting…" : label}
       </button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

@@ -1,18 +1,49 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { User } from "@prisma/client";
-import { FREE_SET_LIMIT, FREE_SCAN_LIMIT_PER_WEEK } from "./limits";
+import { FREE_SET_LIMIT, PLUS_SET_LIMIT, FREE_SCAN_LIMIT_PER_WEEK } from "./limits";
 
-export { FREE_SET_LIMIT, FREE_SCAN_LIMIT_PER_WEEK };
+export { FREE_SET_LIMIT, PLUS_SET_LIMIT, FREE_SCAN_LIMIT_PER_WEEK };
 
 const ABUSE_LOOKBACK_DAYS = 30;
 const ABUSE_BAN_THRESHOLD = 3;
 
-export async function isPro(user: User): Promise<boolean> {
-  if (user.role === "ADMIN") return true;
+export type SubscriptionTier = "free" | "plus" | "pro";
+
+/**
+ * Three-tier resolution keyed off `Subscription.stripePriceId` vs.
+ * `STRIPE_PRO_PRICE_ID`/`STRIPE_PLUS_PRICE_ID` — the webhook
+ * (src/app/api/webhooks/stripe/route.ts) already stores whatever price the
+ * subscription is actually on, price-agnostically, so no schema change was
+ * needed to add Plus. An unrecognized (e.g. stale/archived) price id fails
+ * closed to "free" rather than open to "pro".
+ */
+export async function getSubscriptionTier(user: User): Promise<SubscriptionTier> {
+  if (user.role === "ADMIN") return "pro";
   const subscription = await prisma.subscription.findUnique({ where: { userId: user.id } });
-  if (!subscription) return false;
-  return (subscription.status === "active" || subscription.status === "trialing") && subscription.currentPeriodEnd > new Date();
+  if (!subscription) return "free";
+  const active = (subscription.status === "active" || subscription.status === "trialing") && subscription.currentPeriodEnd > new Date();
+  if (!active) return "free";
+  if (subscription.stripePriceId === process.env.STRIPE_PRO_PRICE_ID) return "pro";
+  if (subscription.stripePriceId === process.env.STRIPE_PLUS_PRICE_ID) return "plus";
+  return "free";
+}
+
+/**
+ * Still used everywhere that only cares about the top tier (scan limits —
+ * out of scope for the Plus tier, which keeps the same weekly scan quota as
+ * Free; only Pro is unlimited scans). Kept as its own function rather than
+ * inlining `getSubscriptionTier(user) === "pro"` at every call site.
+ */
+export async function isPro(user: User): Promise<boolean> {
+  return (await getSubscriptionTier(user)) === "pro";
+}
+
+/** `Infinity` for Pro — callers should compare with `>=`, never assume a finite number. */
+export function getSetLimitForTier(tier: SubscriptionTier): number {
+  if (tier === "pro") return Infinity;
+  if (tier === "plus") return PLUS_SET_LIMIT;
+  return FREE_SET_LIMIT;
 }
 
 /** Exported for commitMigration's batched variant — see its doc comment for why. */
@@ -25,20 +56,26 @@ export async function getOwnedSetIds(userId: string): Promise<Set<string>> {
 }
 
 /**
- * Throws a plain Error with message "PAYWALL_SET_LIMIT" if a free-tier user
- * is about to own a card from a 5th distinct Set. Already owning something
- * in `setId` is always allowed, at any count. A plain Error rather than a
- * custom subclass — Server Action error identity doesn't survive the client
- * boundary in this app (see OcrNotConfiguredError's doc comment in
- * scanner.ts), but `.message` does, so callers match on the string prefix.
+ * Throws a plain Error with message "PAYWALL_SET_LIMIT" if a user is about
+ * to own a card from a set beyond their tier's ceiling (4 for Free, 20 for
+ * Plus, unlimited for Pro). Already owning something in `setId` is always
+ * allowed, at any count. Kept as the same error string across both the
+ * Free and Plus ceilings — that exact string is part of the API contract
+ * the iOS app already decodes (APIError.swift), so this stays a single
+ * code rather than growing a second, tier-specific one. A plain Error
+ * rather than a custom subclass — Server Action error identity doesn't
+ * survive the client boundary in this app (see OcrNotConfiguredError's doc
+ * comment in scanner.ts), but `.message` does, so callers match on the
+ * string prefix.
  */
 export async function assertCanAddToSet(userId: string, setId: string): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (await isPro(user)) return;
+  const limit = getSetLimitForTier(await getSubscriptionTier(user));
+  if (limit === Infinity) return;
 
   const ownedSetIds = await getOwnedSetIds(userId);
   if (ownedSetIds.has(setId)) return;
-  if (ownedSetIds.size >= FREE_SET_LIMIT) {
+  if (ownedSetIds.size >= limit) {
     throw new Error("PAYWALL_SET_LIMIT");
   }
 }

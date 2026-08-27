@@ -4,4 +4,5 @@
  * components too, e.g. paywall-messages.ts and the pricing/settings UI.
  */
 export const FREE_SET_LIMIT = 4;
+export const PLUS_SET_LIMIT = 20;
 export const FREE_SCAN_LIMIT_PER_WEEK = 25;

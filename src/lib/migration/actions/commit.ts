@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireUserForAction } from '@/lib/auth/session';
-import { isPro, getOwnedSetIds, FREE_SET_LIMIT } from '@/lib/billing/entitlements';
+import { getSubscriptionTier, getSetLimitForTier, getOwnedSetIds } from '@/lib/billing/entitlements';
 
 export async function commitMigration(sessionId: string) {
   const user = await requireUserForAction();
@@ -31,12 +31,13 @@ export async function commitMigration(sessionId: string) {
   let importedCount = 0;
   let skippedForTierLimitCount = 0;
 
-  // Free-tier set cap: resolve once up front (not per-row via
-  // assertCanAddToSet — a bulk import can be hundreds of rows, and this
-  // batched form is the same check, just amortized to one initial query
-  // plus in-memory tracking as new sets get added during this loop).
-  const pro = await isPro(user);
-  const ownedSetIds = pro ? null : await getOwnedSetIds(userId);
+  // Tier set cap (4 Free / 20 Plus / unlimited Pro): resolve once up front
+  // (not per-row via assertCanAddToSet — a bulk import can be hundreds of
+  // rows, and this batched form is the same check, just amortized to one
+  // initial query plus in-memory tracking as new sets get added during
+  // this loop).
+  const setLimit = getSetLimitForTier(await getSubscriptionTier(user));
+  const ownedSetIds = setLimit === Infinity ? null : await getOwnedSetIds(userId);
 
   // Process rows
   for (const row of session.rows) {
@@ -46,7 +47,7 @@ export async function commitMigration(sessionId: string) {
       if (ownedSetIds) {
         const variant = await prisma.variant.findUnique({ where: { id: row.resolvedVariantId }, select: { card: { select: { setId: true } } } });
         const setId = variant?.card.setId;
-        if (setId && !ownedSetIds.has(setId) && ownedSetIds.size >= FREE_SET_LIMIT) {
+        if (setId && !ownedSetIds.has(setId) && ownedSetIds.size >= setLimit) {
           await prisma.migrationRow.update({ where: { id: row.id }, data: { status: 'SKIPPED_TIER_LIMIT' } });
           skippedForTierLimitCount++;
           continue;

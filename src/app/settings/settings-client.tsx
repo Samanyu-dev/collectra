@@ -21,13 +21,15 @@ interface Stats {
 }
 
 interface BillingInfo {
-  isPro: boolean;
+  tier: 'free' | 'plus' | 'pro';
   setsUsed: number;
   setLimit: number;
   scansUsedThisWeek: number;
   scanLimitPerWeek: number;
   subscription: { status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean } | null;
 }
+
+const TIER_LABEL: Record<BillingInfo['tier'], string> = { free: 'Free', plus: 'Plus', pro: 'Pro' };
 
 interface ProfileFields {
   username: string | null;
@@ -148,13 +150,19 @@ export function SettingsClient({ user, stats, billing }: { user: ({ name: string
         )}
       </SettingsSection>
 
-      <SettingsSection title="Billing" description={billing.isPro ? 'You have full Pro access.' : 'Free plan, upgrade anytime.'} icon={billing.isPro ? Sparkles : CreditCard}>
+      <SettingsSection
+        title="Billing"
+        description={
+          billing.tier === 'pro' ? 'You have full Pro access.' : billing.tier === 'plus' ? 'Plus plan — track up to 20 sets.' : 'Free plan, upgrade anytime.'
+        }
+        icon={billing.tier === 'free' ? CreditCard : Sparkles}
+      >
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-              {billing.isPro && <Sparkles size={12} />} {billing.isPro ? 'Pro' : 'Free'}
+              {billing.tier !== 'free' && <Sparkles size={12} />} {TIER_LABEL[billing.tier]}
             </span>
-            {billing.isPro && billing.subscription && (
+            {billing.tier !== 'free' && billing.subscription && (
               <span className="text-xs text-foreground/50">
                 {billing.subscription.cancelAtPeriodEnd
                   ? `Cancels ${new Date(billing.subscription.currentPeriodEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
@@ -163,7 +171,7 @@ export function SettingsClient({ user, stats, billing }: { user: ({ name: string
             )}
           </div>
 
-          {!billing.isPro && (
+          {billing.tier !== 'pro' && (
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between text-xs text-foreground/50 mb-1.5">
@@ -182,10 +190,24 @@ export function SettingsClient({ user, stats, billing }: { user: ({ name: string
             </div>
           )}
 
-          {billing.isPro ? (
+          {billing.tier === 'pro' ? (
             <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+          ) : billing.tier === 'plus' ? (
+            <div className="flex flex-wrap gap-3">
+              <UpgradeButton
+                tier="pro"
+                label="Upgrade to Pro"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              />
+              <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+            </div>
           ) : (
-            <UpgradeButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50" />
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              View plans
+            </Link>
           )}
         </div>
       </SettingsSection>

@@ -21,19 +21,32 @@ async function getOrCreateStripeCustomerId(userId: string, email: string): Promi
   return customer.id;
 }
 
-/** Redirects the browser to a Stripe-hosted Checkout Session for the Pro subscription. */
-export async function createCheckoutSession(): Promise<{ url: string }> {
+const TIER_PRICE_ENV: Record<"plus" | "pro", string> = {
+  plus: "STRIPE_PLUS_PRICE_ID",
+  pro: "STRIPE_PRO_PRICE_ID",
+};
+
+/** Random 8-letter suffix for `integration_identifier` — lets the Dashboard tell this checkout flow apart from any other, per Stripe's own labeling convention. */
+function randomLetterSuffix(): string {
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  return Array.from({ length: 8 }, () => letters[Math.floor(Math.random() * letters.length)]).join("");
+}
+
+/** Redirects the browser to a Stripe-hosted Checkout Session for the given subscription tier. */
+export async function createCheckoutSession(tier: "plus" | "pro"): Promise<{ url: string }> {
   const user = await requireUserForAction();
   const origin = await getOrigin();
   const customerId = await getOrCreateStripeCustomerId(user.id, user.email);
+  const priceId = process.env[TIER_PRICE_ENV[tier]]!;
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
     // No payment_method_types — let Stripe pick dynamically per Dashboard config.
-    line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID!, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/settings?upgraded=1`,
     cancel_url: `${origin}/pricing`,
+    integration_identifier: `collectra_checkout_${randomLetterSuffix()}`,
   });
 
   if (!session.url) throw new Error("Stripe did not return a Checkout URL.");
