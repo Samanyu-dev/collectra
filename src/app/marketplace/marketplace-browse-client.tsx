@@ -115,7 +115,7 @@ export function MarketplaceBrowseClient({
             transition={{ duration: 0.25, delay: (i % 18) * 0.02 }}
           >
             <Link href={`/marketplace/${item.id}`} className="block group">
-              <div className="relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border border-foreground/5 group-hover:border-foreground/20 transition-colors">
+              <div className="card-frame relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border border-foreground/5 group-hover:border-foreground/20 transition-colors">
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.cardName} fill className="object-cover" loading="lazy" />
                 ) : (

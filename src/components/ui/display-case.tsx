@@ -38,7 +38,7 @@ export function DisplayCase({ instances }: DisplayCaseProps) {
             >
               {/* Card Container with 3D Hover */}
               <motion.div
-                className="relative w-full aspect-[63/88] rounded-xl overflow-hidden shadow-2xl border border-foreground/10"
+                className="card-frame relative w-full aspect-[63/88] rounded-xl overflow-hidden border border-foreground/10"
                 whileHover={{ scale: 1.05, y: -10, rotateY: 5, rotateX: 5 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                 style={{ transformStyle: 'preserve-3d' }}
@@ -144,7 +144,7 @@ function InstanceModal({ instance, onClose }: { instance: any, onClose: () => vo
 
         {/* Left: The Card Visual */}
         <div className="w-full md:w-2/5 p-8 md:p-12 bg-background/40 flex items-center justify-center relative overflow-hidden">
-          <div className="relative w-full max-w-[300px] aspect-[63/88] rounded-xl shadow-2xl">
+          <div className="card-frame relative w-full max-w-[300px] aspect-[63/88] rounded-xl overflow-hidden">
             {hqImage ? (
               <Image src={hqImage} alt={card.name} fill className="object-cover" />
             ) : null}

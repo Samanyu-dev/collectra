@@ -25,6 +25,7 @@ struct ShelfCell: View {
                     RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                         .strokeBorder(Theme.Color_.border, lineWidth: 1)
                 )
+                .cardFrame(cornerRadius: Theme.Radius.md)
                 .overlay(alignment: .topLeading) {
                     if item.isFavorite {
                         Image(systemName: "heart.fill")

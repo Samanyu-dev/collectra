@@ -309,7 +309,7 @@ export function CardsBrowseClient({
                   className="group relative"
                 >
                   <Link href={`/cards/${card.id}`} className="block">
-                    <div className={`relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border transition-colors ${ownedQuantity > 0 ? 'border-primary/50' : 'border-foreground/5 group-hover:border-foreground/20'}`}>
+                    <div className={`card-frame relative aspect-[63/88] rounded-xl overflow-hidden bg-foreground/5 border transition-colors ${ownedQuantity > 0 ? 'border-primary/50' : 'border-foreground/5 group-hover:border-foreground/20'}`}>
                       <div className={`w-full h-full transition-all duration-300 ${ownedQuantity > 0 ? '' : 'grayscale-[85%] opacity-45 group-hover:grayscale-0 group-hover:opacity-90'}`}>
                         {image ? (
                           <Image src={image.url} alt={card.name} fill className="object-cover" loading="lazy" sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw" />

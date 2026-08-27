@@ -27,6 +27,7 @@ struct SetCell: View {
                     RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                         .strokeBorder(Theme.Color_.border, lineWidth: 1)
                 )
+                .cardFrame(cornerRadius: Theme.Radius.md)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(set.name)

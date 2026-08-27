@@ -81,7 +81,7 @@ export function VaultClient({ items, totalVaultValue }: { items: VaultItem[]; to
                     <div className="absolute inset-0 bg-gradient-to-b from-foreground/5 to-transparent blur-3xl -z-10 rounded-full scale-150 opacity-30" />
 
                     <Link href={`/cards/${item.cardId}`}>
-                      <div className={`relative group cursor-pointer w-[280px] aspect-[63/88] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-foreground/10 bg-foreground/5 ${
+                      <div className={`card-frame relative group cursor-pointer w-[280px] aspect-[63/88] rounded-2xl overflow-hidden ring-1 ring-foreground/10 bg-foreground/5 ${
                         item.instanceId === crownJewelId ? "foil-frame" : ""
                       }`}>
                         {image ? (

@@ -103,6 +103,22 @@ extension View {
     func surface(elevated: Bool = false) -> some View {
         modifier(SurfaceBackground(elevated: elevated))
     }
+
+    /// The native counterpart to the web app's `.card-frame` CSS utility
+    /// (globals.css) — a thin rim highlight plus a two-layer lift shadow,
+    /// so a card image tile reads as a physical object rather than a flat
+    /// photo. Apply to the same rounded container a call site already
+    /// clips its image to; doesn't replace any existing border/overlay,
+    /// just adds depth underneath it.
+    func cardFrame(cornerRadius: CGFloat) -> some View {
+        self
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.45), radius: 10, x: 0, y: 5)
+            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+    }
 }
 
 struct PrimaryButtonStyle: ButtonStyle {

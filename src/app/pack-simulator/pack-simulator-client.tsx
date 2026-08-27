@@ -135,7 +135,7 @@ export function PackSimulatorClient({ products }: { products: ProductItem[] }) {
                       transition={{ duration: 0.6, delay: i * 0.15, type: 'spring' }}
                       className="flex flex-col items-center gap-2 w-32"
                     >
-                      <div className={`w-28 aspect-[63/88] rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center p-2 text-center shadow-2xl ${pull.parallelName ? "foil-frame" : ""}`}>
+                      <div className={`card-frame w-28 aspect-[63/88] rounded-xl bg-foreground/5 border border-foreground/10 flex items-center justify-center p-2 text-center overflow-hidden ${pull.parallelName ? "foil-frame" : ""}`}>
                         <span className="text-[11px] text-foreground/70">{pull.cardName}</span>
                       </div>
                       {pull.parallelName && <span className="text-[10px] text-primary uppercase tracking-wide">{pull.parallelName}</span>}

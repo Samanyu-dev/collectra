@@ -90,7 +90,7 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
 
   if (variant === "binder") {
     return (
-      <Link href={`/cards/${item.cardId}`} className="relative block aspect-[63/88] rounded-lg overflow-hidden border border-foreground/10 bg-foreground/5">
+      <Link href={`/cards/${item.cardId}`} className="card-frame relative block aspect-[63/88] rounded-lg overflow-hidden border border-foreground/10 bg-foreground/5">
         {picked.url ? (
           <Image src={picked.url} alt={item.cardName} fill className="object-cover" loading={priority ? undefined : "lazy"} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw" />
         ) : (
@@ -112,7 +112,7 @@ export function CollectionCard({ variant, item, priority = false }: CollectionCa
 
   return (
     <motion.div
-      className="relative group aspect-[63/88] rounded-xl overflow-hidden border border-foreground/10 shadow-lg"
+      className="card-frame relative group aspect-[63/88] rounded-xl overflow-hidden border border-foreground/10"
       whileHover={{ scale: 1.05, y: -6, rotateY: 4, rotateX: 4 }}
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
       style={{ transformStyle: "preserve-3d" }}

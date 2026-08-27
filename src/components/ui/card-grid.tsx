@@ -223,7 +223,7 @@ export function CardGrid({
               transition={{ duration: 0.3, delay: (index % 24) * 0.02, ease: 'easeOut' }}
               whileHover={{ scale: 1.05, zIndex: 10 }}
               whileTap={{ scale: 0.98 }}
-              className={`group relative aspect-[63/88] rounded-xl overflow-hidden border shadow-lg hover:shadow-2xl ${owned ? 'border-primary/60 bg-primary/5' : 'border-foreground/5 bg-foreground/5 hover:border-foreground/20'} ${glowClass ?? ''}`}
+              className={`card-frame group relative aspect-[63/88] rounded-xl overflow-hidden border ${owned ? 'border-primary/60 bg-primary/5' : 'border-foreground/5 bg-foreground/5 hover:border-foreground/20'} ${glowClass ?? ''}`}
             >
               <Link href={`/cards/${card.id}`} className="absolute inset-0 z-0">
                 {/* Holo/foil sheen — a diagonal light catches the card on hover, like tilting it in your hand */}

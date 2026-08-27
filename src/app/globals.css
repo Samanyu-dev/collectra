@@ -297,6 +297,30 @@
       animation: none;
     }
   }
+
+  /* ─── Card Frame ────────────────────────────────────────────────────
+     The base presentation every card image tile gets, regardless of
+     rarity/ownership — a defined rim (like real cardstock's border) plus
+     a lift shadow, so a card image reads as a physical object sitting on
+     the page rather than a flat photo. Layers under rarity-glow/foil-frame
+     (both still apply on top via their own box-shadow/pseudo-element),
+     never replaces them. Shadow-based rather than a hard border color so
+     it holds up in both light and dark themes without a separate override. */
+  .card-frame {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 10%),
+      inset 0 0 0 1px oklch(0 0 0 / 25%),
+      0 6px 16px -4px oklch(0 0 0 / 45%),
+      0 2px 4px -1px oklch(0 0 0 / 35%);
+    transition: box-shadow 0.2s ease-out;
+  }
+  .card-frame:hover {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 16%),
+      inset 0 0 0 1px oklch(0 0 0 / 25%),
+      0 10px 28px -4px oklch(0 0 0 / 55%),
+      0 3px 6px -1px oklch(0 0 0 / 40%);
+  }
 }
 
 @property --rarity-angle {

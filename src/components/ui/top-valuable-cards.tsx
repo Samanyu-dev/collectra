@@ -58,7 +58,7 @@ export function TopValuableCardsSection({
             <Link
               key={card.variantId}
               href={`/cards/${card.cardId}`}
-              className={`group relative rounded-2xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/20 transition-colors overflow-hidden ${
+              className={`card-frame group relative rounded-2xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/20 transition-colors overflow-hidden ${
                 highlightTop && i === 0 ? "foil-frame" : ""
               }`}
             >

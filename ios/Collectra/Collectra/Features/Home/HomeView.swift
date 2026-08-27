@@ -163,6 +163,7 @@ private struct TopValuableCardCell: View {
                     RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                         .strokeBorder(isTopRanked ? card.rarityColor : Theme.Color_.border, lineWidth: isTopRanked ? 2 : 1)
                 )
+                .cardFrame(cornerRadius: Theme.Radius.md)
                 .shadow(color: isTopRanked ? card.rarityColor.opacity(0.5) : .clear, radius: 8)
 
             Text(card.cardName)
