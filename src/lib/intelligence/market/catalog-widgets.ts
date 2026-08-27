@@ -12,6 +12,11 @@ export interface CatalogCard {
   setName: string;
   franchiseName: string;
   imageUrl: string | null;
+  // True when imageUrl is a TEAM_CREST fallback (no real card photo exists
+  // yet) rather than an actual card scan/artwork — badge art needs
+  // object-contain + padding, never the crop-to-fill treatment a real card
+  // photo gets, or it renders as a giant edge-to-edge logo.
+  imageIsCrestOnly: boolean;
   marketPriceUsd: number;
   cardType: string;
   rarityTier: RarityTier;
@@ -78,7 +83,9 @@ export async function toCatalogCards(rows: PricedVariantRow[]): Promise<CatalogC
     )
     .map((r) => {
       const images = imagesByCard.get(r.variant.card.id) ?? [];
-      const imageUrl = pickPrimaryImage(images)?.url ?? images.find((img) => img.type === "TEAM_CREST")?.url ?? null;
+      const primaryImage = pickPrimaryImage(images);
+      const crestImage = images.find((img) => img.type === "TEAM_CREST");
+      const imageUrl = primaryImage?.url ?? crestImage?.url ?? null;
 
       return {
         variantId: r.variantId,
@@ -88,6 +95,7 @@ export async function toCatalogCards(rows: PricedVariantRow[]): Promise<CatalogC
         setName: r.variant.card.set.name,
         franchiseName: r.variant.card.set.series.franchise.name,
         imageUrl,
+        imageIsCrestOnly: !primaryImage && !!crestImage,
         marketPriceUsd: r.marketPriceUsd,
         cardType: getVariantCardType(r.variant),
         rarityTier: getRarityTier(r.variant),

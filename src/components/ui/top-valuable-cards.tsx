@@ -63,7 +63,14 @@ export function TopValuableCardsSection({
               }`}
             >
               <div className="aspect-[63/88] relative bg-foreground/10">
-                {card.imageUrl && <Image src={card.imageUrl} alt={card.cardName} fill className="object-cover" />}
+                {card.imageUrl && (
+                  <Image
+                    src={card.imageUrl}
+                    alt={card.cardName}
+                    fill
+                    className={card.imageIsCrestOnly ? "object-contain p-6" : "object-cover"}
+                  />
+                )}
                 <span className="absolute top-2 left-2 w-6 h-6 rounded-full bg-background/80 backdrop-blur flex items-center justify-center text-[11px] font-mono font-bold text-foreground/70">
                   {i + 1}
                 </span>
