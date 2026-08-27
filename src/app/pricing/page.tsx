@@ -104,7 +104,7 @@ export default async function PricingPage() {
               />
               <RazorpayUpgradeButton
                 tier="plus"
-                label="Pay with Razorpay"
+                label="Pay with Razorpay (₹500/mo)"
                 className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-foreground/15 hover:bg-foreground/5 text-sm font-medium transition-colors disabled:opacity-50"
               />
             </div>
@@ -153,7 +153,7 @@ export default async function PricingPage() {
               />
               <RazorpayUpgradeButton
                 tier="pro"
-                label="Pay with Razorpay"
+                label="Pay with Razorpay (₹2,000/mo)"
                 className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-primary/30 hover:bg-primary/5 text-sm font-medium transition-colors disabled:opacity-50"
               />
             </div>
