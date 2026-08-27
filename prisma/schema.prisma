@@ -588,16 +588,27 @@ model User {
 // ==========================================
 
 model Subscription {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id])
-  stripeSubscriptionId String   @unique
-  stripePriceId        String
-  status               String // active | trialing | past_due | canceled | incomplete | unpaid — mirrors Stripe's subscription.status verbatim
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @default(now()) @updatedAt
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  // "stripe" | "razorpay" — which processor owns this row. Exactly one
+  // provider's id/plan columns below are set, matching whichever this is;
+  // the other provider's columns stay null. A user has at most one
+  // Subscription regardless of provider (userId is still @unique).
+  provider String @default("stripe")
+
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  razorpaySubscriptionId String? @unique
+  razorpayPlanId         String?
+
+  status             String // mirrors the provider's own subscription.status verbatim (Stripe: active | trialing | past_due | canceled | incomplete | unpaid — Razorpay: created | authenticated | active | pending | halted | cancelled | completed | expired)
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
 }
 
 // Audit log for the scanner pipeline (docs/adr/004-scanner-architecture.md) —

@@ -11,7 +11,7 @@ import { exportUserData } from '@/lib/actions/export-data';
 import { signOut } from '@/lib/actions/auth';
 import { updateProfile } from '@/lib/actions/profile';
 import { ProgressBar } from '@/components/ui/collectra-ui';
-import { UpgradeButton, ManageBillingButton } from '@/components/billing/billing-actions';
+import { UpgradeButton, ManageBillingButton, CancelRazorpaySubscriptionButton } from '@/components/billing/billing-actions';
 
 interface Stats {
   instanceCount: number;
@@ -26,7 +26,7 @@ interface BillingInfo {
   setLimit: number;
   scansUsedThisWeek: number;
   scanLimitPerWeek: number;
-  subscription: { status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean } | null;
+  subscription: { provider: 'stripe' | 'razorpay'; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean } | null;
 }
 
 const TIER_LABEL: Record<BillingInfo['tier'], string> = { free: 'Free', plus: 'Plus', pro: 'Pro' };
@@ -191,7 +191,11 @@ export function SettingsClient({ user, stats, billing }: { user: ({ name: string
           )}
 
           {billing.tier === 'pro' ? (
-            <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+            billing.subscription?.provider === 'razorpay' ? (
+              <CancelRazorpaySubscriptionButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+            ) : (
+              <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+            )
           ) : billing.tier === 'plus' ? (
             <div className="flex flex-wrap gap-3">
               <UpgradeButton
@@ -199,7 +203,11 @@ export function SettingsClient({ user, stats, billing }: { user: ({ name: string
                 label="Upgrade to Pro"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
               />
-              <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+              {billing.subscription?.provider === 'razorpay' ? (
+                <CancelRazorpaySubscriptionButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+              ) : (
+                <ManageBillingButton className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-foreground text-sm font-medium transition-colors disabled:opacity-50" />
+              )}
             </div>
           ) : (
             <Link

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireUserForAction } from "@/lib/auth/session";
 import { stripe } from "./stripe";
+import { razorpay } from "./razorpay";
 
 async function getOrigin(): Promise<string> {
   const h = await headers();
@@ -68,4 +69,56 @@ export async function createPortalSession(): Promise<{ url: string }> {
   });
 
   return { url: session.url };
+}
+
+const TIER_PLAN_ENV: Record<"plus" | "pro", string> = {
+  plus: "RAZORPAY_PLUS_PLAN_ID",
+  pro: "RAZORPAY_PRO_PLAN_ID",
+};
+
+/**
+ * Creates a Razorpay Subscription in "created" state and hands back its id —
+ * unlike Stripe's hosted Checkout, Razorpay collects payment in a client-side
+ * modal (Checkout.js), so there's no `url` to redirect to here. The caller
+ * (RazorpayUpgradeButton) opens that modal with this subscription id.
+ * `RAZORPAY_KEY_ID` is safe to return — it's the publishable half of the
+ * pair, the same key already exposed as NEXT_PUBLIC_RAZORPAY_KEY_ID.
+ *
+ * The webhook (src/app/api/webhooks/razorpay/route.ts) is the source of
+ * truth for actually activating the subscription server-side, same as
+ * Stripe's checkout.session.completed above — this call never writes to the
+ * Subscription table itself.
+ */
+export async function createRazorpaySubscription(tier: "plus" | "pro"): Promise<{ subscriptionId: string; keyId: string }> {
+  const user = await requireUserForAction();
+  const planId = process.env[TIER_PLAN_ENV[tier]]!;
+
+  const subscription = await razorpay.subscriptions.create({
+    plan_id: planId,
+    customer_notify: 1,
+    // Razorpay requires a fixed cycle count rather than "until cancelled" —
+    // 120 monthly cycles (10 years) is the standard workaround; the customer
+    // can still cancel any time via cancelRazorpaySubscription below.
+    total_count: 120,
+    notes: { userId: user.id, tier },
+  });
+
+  return { subscriptionId: subscription.id, keyId: process.env.RAZORPAY_KEY_ID! };
+}
+
+/**
+ * Schedules the caller's Razorpay subscription to cancel at the end of the
+ * current billing cycle — the closest equivalent to Stripe's portal-driven
+ * cancel-at-period-end, since Razorpay has no hosted self-service portal.
+ * Only tells Razorpay to schedule the cancellation; the Subscription row's
+ * own `status`/`cancelAtPeriodEnd` still update from the webhook, not here.
+ */
+export async function cancelRazorpaySubscription(): Promise<void> {
+  const user = await requireUserForAction();
+  const subscription = await prisma.subscription.findUnique({ where: { userId: user.id } });
+  if (!subscription || subscription.provider !== "razorpay" || !subscription.razorpaySubscriptionId) {
+    throw new Error("No Razorpay subscription to cancel.");
+  }
+
+  await razorpay.subscriptions.cancel(subscription.razorpaySubscriptionId, true);
 }

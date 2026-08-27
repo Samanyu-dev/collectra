@@ -3,7 +3,7 @@ import { Check, Sparkles } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getSubscriptionTier, type SubscriptionTier } from "@/lib/billing/entitlements";
 import { FREE_SET_LIMIT, PLUS_SET_LIMIT, FREE_SCAN_LIMIT_PER_WEEK } from "@/lib/billing/limits";
-import { UpgradeButton } from "@/components/billing/billing-actions";
+import { UpgradeButton, RazorpayUpgradeButton } from "@/components/billing/billing-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -96,11 +96,18 @@ export default async function PricingPage() {
               Included in your Pro plan
             </Link>
           ) : user ? (
-            <UpgradeButton
-              tier="plus"
-              label="Upgrade to Plus"
-              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-sm font-bold transition-colors disabled:opacity-50"
-            />
+            <div className="space-y-2">
+              <UpgradeButton
+                tier="plus"
+                label="Upgrade to Plus"
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-foreground/10 hover:bg-foreground/20 text-sm font-bold transition-colors disabled:opacity-50"
+              />
+              <RazorpayUpgradeButton
+                tier="plus"
+                label="Pay with Razorpay"
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-foreground/15 hover:bg-foreground/5 text-sm font-medium transition-colors disabled:opacity-50"
+              />
+            </div>
           ) : (
             <Link
               href="/signup"
@@ -138,11 +145,18 @@ export default async function PricingPage() {
               You&apos;re on Pro — manage billing
             </Link>
           ) : user ? (
-            <UpgradeButton
-              tier="pro"
-              label="Upgrade to Pro"
-              className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-            />
+            <div className="space-y-2">
+              <UpgradeButton
+                tier="pro"
+                label="Upgrade to Pro"
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              />
+              <RazorpayUpgradeButton
+                tier="pro"
+                label="Pay with Razorpay"
+                className="w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full border border-primary/30 hover:bg-primary/5 text-sm font-medium transition-colors disabled:opacity-50"
+              />
+            </div>
           ) : (
             <Link
               href="/signup"

@@ -11,12 +11,16 @@ const ABUSE_BAN_THRESHOLD = 3;
 export type SubscriptionTier = "free" | "plus" | "pro";
 
 /**
- * Three-tier resolution keyed off `Subscription.stripePriceId` vs.
- * `STRIPE_PRO_PRICE_ID`/`STRIPE_PLUS_PRICE_ID` — the webhook
- * (src/app/api/webhooks/stripe/route.ts) already stores whatever price the
- * subscription is actually on, price-agnostically, so no schema change was
- * needed to add Plus. An unrecognized (e.g. stale/archived) price id fails
- * closed to "free" rather than open to "pro".
+ * Three-tier resolution keyed off whichever provider's plan/price id the
+ * subscription is actually on vs. that provider's `*_PRO_*`/`*_PLUS_*` env
+ * ids — the Stripe webhook (src/app/api/webhooks/stripe/route.ts) and the
+ * Razorpay webhook (src/app/api/webhooks/razorpay/route.ts) both store
+ * whatever plan the subscription is actually on, id-agnostically, so no
+ * schema change is needed to add a tier. An unrecognized (e.g.
+ * stale/archived) id fails closed to "free" rather than open to "pro".
+ * "active"/"trialing" cover Stripe's statuses; Razorpay's equivalent for
+ * "currently paying" is just "active" (it has no separate trial status here
+ * since no plan is configured with a free trial period).
  */
 export async function getSubscriptionTier(user: User): Promise<SubscriptionTier> {
   if (user.role === "ADMIN") return "pro";
@@ -24,6 +28,13 @@ export async function getSubscriptionTier(user: User): Promise<SubscriptionTier>
   if (!subscription) return "free";
   const active = (subscription.status === "active" || subscription.status === "trialing") && subscription.currentPeriodEnd > new Date();
   if (!active) return "free";
+
+  if (subscription.provider === "razorpay") {
+    if (subscription.razorpayPlanId === process.env.RAZORPAY_PRO_PLAN_ID) return "pro";
+    if (subscription.razorpayPlanId === process.env.RAZORPAY_PLUS_PLAN_ID) return "plus";
+    return "free";
+  }
+
   if (subscription.stripePriceId === process.env.STRIPE_PRO_PRICE_ID) return "pro";
   if (subscription.stripePriceId === process.env.STRIPE_PLUS_PRICE_ID) return "plus";
   return "free";

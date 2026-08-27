@@ -44,6 +44,7 @@ export default async function SettingsPage() {
         scanLimitPerWeek: FREE_SCAN_LIMIT_PER_WEEK,
         subscription: subscription
           ? {
+              provider: subscription.provider as "stripe" | "razorpay",
               status: subscription.status,
               currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
