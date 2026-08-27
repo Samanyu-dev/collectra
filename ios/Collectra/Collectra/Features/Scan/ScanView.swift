@@ -8,7 +8,7 @@ struct ScanView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
 
             switch viewModel.state {
             case .checkingQuota, .checkingPermission:

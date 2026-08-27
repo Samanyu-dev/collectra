@@ -10,7 +10,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.Color_.background.ignoresSafeArea()
+                AmbientBackground()
                 CollectionStateView(
                     state: viewModel.loadState,
                     loadingMessage: "Loading your collection…",

@@ -129,6 +129,13 @@
   --text-secondary: oklch(0.55 0 0);
   --text-tertiary: oklch(0.35 0 0);
 
+  /* Ambient backdrop ("Vault Spotlight") — a near-imperceptible radial
+     falloff standing in for the flat --background, so OLED screens don't
+     band. Two extra stops only; --background itself is still the true base
+     color everywhere else (cards, popovers, etc.) — this never replaces it. */
+  --ambient-1: oklch(0.10 0 0);
+  --ambient-2: oklch(0.05 0 0);
+
   /* Validated categorical palette (dataviz skill references/palette.md) —
      fixed hue order, never cycled/reassigned per-request. Dark-surface steps. */
   --cat-1: #3987e5; /* blue */
@@ -176,6 +183,9 @@
   --text-secondary: oklch(0.45 0 0);
   --text-tertiary: oklch(0.65 0 0);
 
+  --ambient-1: oklch(1 0 0);
+  --ambient-2: oklch(0.94 0 0);
+
   /* Validated categorical palette — light-surface steps. */
   --cat-1: #2a78d6; /* blue */
   --cat-2: #eb6834; /* orange */
@@ -194,11 +204,59 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    /* "Vault Spotlight" — background var(--background) is still the true
+       base color (still what every solid-fill component reads), this just
+       adds a near-imperceptible top-lit falloff so large flat areas don't
+       band, especially on OLED. */
+    background: radial-gradient(ellipse 90% 55% at 50% -15%, var(--ambient-1) 0%, var(--background) 55%, var(--ambient-2) 100%) fixed;
   }
   html {
     @apply font-sans antialiased;
     scroll-behavior: smooth;
+  }
+}
+
+/* ─── Ambient Background Layers ─────────────────────────────────────────
+   Two fixed, full-viewport, pointer-events:none layers behind all content
+   (negative z-index — body itself establishes the stacking context, no
+   wrapper needed). Layer 1 is grain (Vault Spotlight, always on). Layer 2
+   is "Foil Sheen" — the exact five hues .foil-frame already animates on
+   individual Legendary cards (see below), turned down to ambient volume and
+   slowed way down, so the page background reads as an extension of what a
+   rare pull already looks like rather than a second, competing decoration.
+   Both honor prefers-reduced-motion; grain has nothing to freeze, foil does. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+body::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}
+body::after {
+  background: linear-gradient(115deg, #ff5f6d, #ffc371, #4ade80, #60a5fa, #c084fc, #ff5f6d);
+  background-size: 320% 320%;
+  opacity: 0.06;
+  mix-blend-mode: soft-light;
+  animation: foil-sheen-drift 34s ease-in-out infinite;
+}
+.light body::after {
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+}
+@keyframes foil-sheen-drift {
+  0%, 100% { background-position: 0% 30%; }
+  50% { background-position: 100% 70%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
   }
 }
 

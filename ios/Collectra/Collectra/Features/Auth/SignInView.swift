@@ -18,7 +18,7 @@ struct SignInView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.Color_.background.ignoresSafeArea()
+                AmbientBackground()
                 ScrollView {
                     VStack(spacing: Theme.Spacing.lg) {
                         VStack(spacing: Theme.Spacing.xs) {

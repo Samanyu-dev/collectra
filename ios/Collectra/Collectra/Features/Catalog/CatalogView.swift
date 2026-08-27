@@ -20,7 +20,7 @@ struct CatalogView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.Color_.background.ignoresSafeArea()
+                AmbientBackground()
                 Group {
                     switch section {
                     case .cards:

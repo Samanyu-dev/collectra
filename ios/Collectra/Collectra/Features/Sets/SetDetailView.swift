@@ -24,7 +24,7 @@ struct SetDetailView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
             VStack(spacing: 0) {
                 header
                 CardsGridContent(viewModel: cardsViewModel)

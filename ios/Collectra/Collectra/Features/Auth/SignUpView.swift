@@ -30,7 +30,7 @@ struct SignUpView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
             ScrollView {
                 VStack(spacing: Theme.Spacing.lg) {
                     VStack(spacing: Theme.Spacing.xs) {

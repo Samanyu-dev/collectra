@@ -21,7 +21,7 @@ struct CardDetailView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
             content
         }
         .navigationTitle(cardName)

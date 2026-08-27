@@ -30,6 +30,7 @@
 		27BAF7D1494B341D5CD9C765 /* CatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC8743B1A3D87D748F533BF /* CatalogView.swift */; };
 		28CFB7AFCCAD514566CF6E50 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AC9B8F589C7A6B90A309596 /* CardDetailView.swift */; };
 		2D9B1B2523F6BA5B9FD162E1 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A4ED1E1DCE293444E8BCE2 /* RootView.swift */; };
+		30E1BDA710B428E351234B21 /* AmbientBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50B15C3C5CDD02DF1EAEC448 /* AmbientBackground.swift */; };
 		31686C9BDFE03F0DFB499237 /* ScanModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DA46D8D9A162CDCCA62777A /* ScanModels.swift */; };
 		3577CBCD5471ABCDE5F38D1A /* CardDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389DE9942E8D81EB06B60901 /* CardDetail.swift */; };
 		36B728992148B5FF5C3D6A7B /* FakeCameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39D2A1460A0FB23D314E1E45 /* FakeCameraService.swift */; };
@@ -181,6 +182,7 @@
 		49C7E325D5AF2DF9888C0E6B /* SetDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDetail.swift; sourceTree = "<group>"; };
 		49F348157CB9E26257F45DA7 /* ShelfCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfCell.swift; sourceTree = "<group>"; };
 		4C7F3BA7887F1848228DFBB7 /* CardSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSummary.swift; sourceTree = "<group>"; };
+		50B15C3C5CDD02DF1EAEC448 /* AmbientBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmbientBackground.swift; sourceTree = "<group>"; };
 		517CA4E7DD6DB5607866F4C1 /* WishlistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WishlistView.swift; sourceTree = "<group>"; };
 		56B49B3F8A2A9B0F1C9F74D7 /* ScanViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanViewModelTests.swift; sourceTree = "<group>"; };
 		5A26465997A8B3F8C2046AC1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -376,6 +378,7 @@
 		55C73E393681076AB8FF0685 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				50B15C3C5CDD02DF1EAEC448 /* AmbientBackground.swift */,
 				A01E81C365ABEDDF7FFDF61D /* CachedAsyncImage.swift */,
 				B63B2D645270CEF83AF71979 /* CardImageTile.swift */,
 				91A368CF82ED1ACB5BC7D619 /* CollectionStateView.swift */,
@@ -791,6 +794,7 @@
 			files = (
 				12BAFCC5F0D3502977062B99 /* APIClient.swift in Sources */,
 				DCF1CC0911A90DC9467CD642 /* APIError.swift in Sources */,
+				30E1BDA710B428E351234B21 /* AmbientBackground.swift in Sources */,
 				85CCC5F6A27C28B8BDF56B56 /* AppConfig.swift in Sources */,
 				12D6115446FB02D4559FF73D /* CachedAsyncImage.swift in Sources */,
 				A641808562869F4FB299A513 /* CameraAuthorizing.swift in Sources */,

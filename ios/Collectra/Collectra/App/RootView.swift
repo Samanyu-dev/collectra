@@ -63,7 +63,7 @@ private struct LaunchLoadingView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
             VStack(spacing: Theme.Spacing.lg) {
                 Text("Collectra")
                     .font(Theme.Typography.display(34))

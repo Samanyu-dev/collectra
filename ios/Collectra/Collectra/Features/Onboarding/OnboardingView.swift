@@ -28,7 +28,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Theme.Color_.background.ignoresSafeArea()
+            AmbientBackground()
 
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {

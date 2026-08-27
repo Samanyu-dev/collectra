@@ -22,7 +22,7 @@ struct ShelfView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.Color_.background.ignoresSafeArea()
+                AmbientBackground()
                 VStack(spacing: 0) {
                     Picker("Section", selection: $section) {
                         ForEach(Section.allCases) { s in

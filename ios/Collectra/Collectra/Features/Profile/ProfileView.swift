@@ -14,7 +14,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.Color_.background.ignoresSafeArea()
+                AmbientBackground()
                 ScrollView {
                     VStack(spacing: Theme.Spacing.lg) {
                         if isLoading {
