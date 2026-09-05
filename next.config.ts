@@ -34,7 +34,12 @@ const nextConfig: NextConfig = {
       // above — this exact class of bug (missing remotePatterns entry
       // throwing a Server Components render error) already happened once
       // for Blob, see PROJECT_STATE.md.
-      { protocol: 'https', hostname: '*.cloud.appwrite.io' }
+      { protocol: 'https', hostname: '*.cloud.appwrite.io' },
+      // Cloudflare R2 — new default write provider (2026-08-30, see
+      // process-media.ts) for catalog card images. Wildcarded across the
+      // r2.dev per-bucket subdomain, same reasoning as Blob/Appwrite above;
+      // add a specific entry here too if/when a custom domain replaces it.
+      { protocol: 'https', hostname: '*.r2.dev' }
     ]
   },
   experimental: {

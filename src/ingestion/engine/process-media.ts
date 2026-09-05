@@ -1,9 +1,9 @@
 import { prisma } from "./prisma";
 import { SharpImageProcessor } from "../../../packages/media/processor/ImageProcessor";
-import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter } from "../../../packages/media";
+import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter, R2Adapter } from "../../../packages/media";
 
 const processor = new SharpImageProcessor();
-const CATALOG_BUCKET = "catalog-media";
+export const CATALOG_BUCKET = "catalog-media";
 
 // A card image narrower than this on its longest usable dimension isn't
 // worth promoting as "the" displayed image for a card — quality gate, not a
@@ -54,14 +54,27 @@ export async function findDuplicateByPerceptualHash(hash: string, excludeId?: st
 // Provider history: Supabase Storage hit its plan quota, so new catalog
 // media moved to Vercel Blob; Blob's own free tier is now the constraint
 // (2026-08-07 — confirmed via a real failed put(), not just a config
-// check), so Appwrite is the new default write provider going forward, per
-// explicit user decision (this was already planned as the fallback — see
-// PROJECT_STATE.md). Media already re-hosted on Supabase or Blob keeps its
-// existing storageKey/provider/URL untouched — this only decides where the
-// *next* upload lands; every read path selects the adapter per-row via
-// Media.provider (see src/lib/media/resolve.ts), so old and new media
-// coexist with no migration needed.
-function storageAdapter(): StorageAdapter {
+// check), so Appwrite became the default write provider next. Appwrite's
+// free-tier project now auto-pauses on inactivity (403, recurring incident
+// — has broken image processing mid-ingestion multiple times), so R2 is the
+// new default going forward (2026-08-30): zero egress fees, no
+// pause-on-inactivity failure mode, S3-compatible. Media already re-hosted
+// on Supabase/Blob/Appwrite keeps its existing storageKey/provider/URL
+// untouched — this only decides where the *next* upload lands; every read
+// path selects the adapter per-row via Media.provider (see
+// src/lib/media/resolve.ts), so old and new media coexist with no
+// migration needed.
+export function storageAdapter(): StorageAdapter {
+  if (process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET_NAME && process.env.R2_PUBLIC_BASE_URL) {
+    return new R2Adapter({
+      accountId: process.env.R2_ACCOUNT_ID,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      bucket: process.env.R2_BUCKET_NAME,
+      publicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
+      prefix: CATALOG_BUCKET,
+    });
+  }
   if (process.env.APPWRITE_ENDPOINT && process.env.APPWRITE_PROJECT_ID && process.env.APPWRITE_API_KEY && process.env.APPWRITE_BUCKET_ID) {
     return new AppwriteAdapter({
       endpoint: process.env.APPWRITE_ENDPOINT,

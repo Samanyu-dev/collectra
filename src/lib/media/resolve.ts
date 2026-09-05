@@ -1,5 +1,5 @@
 import { Media } from "@prisma/client";
-import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter } from "../../../packages/media";
+import { StorageAdapter, LocalStorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdapter, R2Adapter } from "../../../packages/media";
 import { prisma } from "../prisma";
 
 // Hybrid Media Source priority order — see prisma/schema.prisma Media.sourceType docs.
@@ -75,6 +75,17 @@ function storageAdapterFor(media: Media): StorageAdapter | null {
       url: process.env.SUPABASE_URL,
       serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
       bucket: media.bucket,
+    });
+  }
+  if (media.provider === "r2") {
+    if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME || !process.env.R2_PUBLIC_BASE_URL) return null;
+    return new R2Adapter({
+      accountId: process.env.R2_ACCOUNT_ID,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      bucket: process.env.R2_BUCKET_NAME,
+      publicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
+      prefix: media.bucket,
     });
   }
   if (media.provider === "local") {
