@@ -2,6 +2,14 @@ import "dotenv/config";
 import { prisma } from "@/lib/prisma";
 import { processMediaRow } from "@/ingestion/engine/process-media";
 
+// Usage: npx tsx src/scripts/backfill-external-media-to-r2.ts <sourceName-contains-filter>
+// e.g. "centraldacopa", "pokemontcg-api", "mtg-api" — matches Media.sourceName.
+const sourceFilter = process.argv[2];
+if (!sourceFilter) {
+  console.error("Usage: backfill-external-media-to-r2.ts <sourceName-contains-filter>");
+  process.exit(1);
+}
+
 async function main() {
   let processed = 0,
     duplicates = 0,
@@ -10,7 +18,7 @@ async function main() {
 
   while (true) {
     const batch = await prisma.media.findMany({
-      where: { provider: "external", perceptualHash: null, status: "READY", sourceName: { contains: "centraldacopa" } },
+      where: { provider: "external", perceptualHash: null, status: "READY", sourceName: { contains: sourceFilter } },
       take: 20,
       orderBy: { id: "asc" },
     });
