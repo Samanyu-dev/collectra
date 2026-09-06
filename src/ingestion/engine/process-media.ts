@@ -5,6 +5,27 @@ import { StorageAdapter, SupabaseStorageAdapter, VercelBlobAdapter, AppwriteAdap
 const processor = new SharpImageProcessor();
 export const CATALOG_BUCKET = "catalog-media";
 
+const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+/**
+ * Folder prefix for a re-hosted Media row's R2 keys — same
+ * franchise/set/card organization as the admin upload path
+ * (card-image-storage.ts), so the bucket stays human-browsable regardless
+ * of which pipeline wrote a given image. Falls back to a flat catalog/{id}
+ * prefix for media with no Card attachment (e.g. Product/Team images).
+ */
+async function keyPrefixFor(mediaId: string): Promise<string> {
+  const attachment = await prisma.mediaAttachment.findFirst({ where: { mediaId, entityType: "Card" } });
+  if (attachment) {
+    const card = await prisma.card.findUnique({
+      where: { id: attachment.entityId },
+      include: { set: { include: { series: { include: { franchise: true } } } } },
+    });
+    if (card) return `catalog/${slugify(card.set.series.franchise.name)}/${card.setId}/${card.id}`;
+  }
+  return `catalog/${mediaId}`;
+}
+
 // A card image narrower than this on its longest usable dimension isn't
 // worth promoting as "the" displayed image for a card — quality gate, not a
 // hard rejection (the row still gets its metadata populated either way).
@@ -173,12 +194,13 @@ export async function processMediaRow(mediaId: string): Promise<ProcessMediaResu
 
     const format = metadata.format ?? "jpeg";
     const adapter = storageAdapter();
-    const originalKey = `catalog/${media.id}/original.${format}`;
+    const prefix = await keyPrefixFor(media.id);
+    const originalKey = `${prefix}/${media.id}-original.${format}`;
     await adapter.put(originalKey, buffer, `image/${format}`);
 
     const [thumbnail, webp] = await Promise.all([processor.generateThumbnail(buffer), processor.toWebP(buffer)]);
-    const thumbnailKey = `catalog/${media.id}/thumbnail.jpg`;
-    const webpKey = `catalog/${media.id}/image.webp`;
+    const thumbnailKey = `${prefix}/${media.id}-thumbnail.jpg`;
+    const webpKey = `${prefix}/${media.id}-image.webp`;
     await Promise.all([adapter.put(thumbnailKey, thumbnail.buffer, "image/jpeg"), adapter.put(webpKey, webp.buffer, "image/webp")]);
     await Promise.all([
       upsertVariant(media.id, "thumbnail", thumbnail, thumbnailKey),

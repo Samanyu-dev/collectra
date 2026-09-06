@@ -95,7 +95,21 @@ export function CropStep({
   const containerRef = useRef<HTMLDivElement>(null);
   const [topLeft, setTopLeft] = useState<Point>({ x: 0.06, y: 0.06 });
   const [bottomRight, setBottomRight] = useState<Point>({ x: 0.94, y: 0.94 });
+  // Bug: drag coordinates were fractions of the *container* box, but the
+  // container had a fixed max-h-80 while the <img> inside it was
+  // object-contain — for any photo whose aspect ratio didn't match the
+  // container's, that letterboxed the image and every drag position (and
+  // the final crop math, which also assumed container-fraction ==
+  // image-fraction) was off by the letterbox gap. Forcing the container's
+  // aspect-ratio to the image's own natural ratio makes letterboxing
+  // impossible, so container-fraction is always image-fraction.
+  const [aspect, setAspect] = useState<number | null>(null);
   const dragging = useRef<"tl" | "br" | null>(null);
+
+  function onImageLoad() {
+    const img = imgRef.current;
+    if (img) setAspect(img.naturalWidth / img.naturalHeight);
+  }
 
   function pointFromEvent(e: ReactPointerEvent): Point {
     const rect = containerRef.current!.getBoundingClientRect();
@@ -154,28 +168,40 @@ export function CropStep({
       <p className="text-xs text-foreground/50">Drag the corners to fit the card, then crop.</p>
       <div
         ref={containerRef}
-        className="relative select-none touch-none max-h-80 overflow-hidden rounded-lg"
+        className="relative select-none touch-none w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-black/20"
+        style={{ aspectRatio: aspect ?? 3 / 4 }}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={imgRef} src={imageUrl} alt="" className="w-full max-h-80 object-contain block" draggable={false} />
-        <div className="absolute inset-0 bg-black/50" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ${top}%, ${left}%  ${top}%, ${left}% ${top + height}%, ${left + width}% ${top + height}%, ${left + width}% ${top}%, 0 ${top}%)` }} />
-        <div
-          className="absolute border-2 border-primary"
-          style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt=""
+          onLoad={onImageLoad}
+          className="w-full h-full object-cover block"
+          draggable={false}
         />
-        <div
-          onPointerDown={startDrag("tl")}
-          className="absolute w-5 h-5 rounded-full bg-primary border-2 border-white -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize"
-          style={{ left: `${topLeft.x * 100}%`, top: `${topLeft.y * 100}%` }}
-        />
-        <div
-          onPointerDown={startDrag("br")}
-          className="absolute w-5 h-5 rounded-full bg-primary border-2 border-white -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize"
-          style={{ left: `${bottomRight.x * 100}%`, top: `${bottomRight.y * 100}%` }}
-        />
+        {aspect !== null && (
+          <>
+            <div className="absolute inset-0 bg-black/50" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ${top}%, ${left}%  ${top}%, ${left}% ${top + height}%, ${left + width}% ${top + height}%, ${left + width}% ${top}%, 0 ${top}%)` }} />
+            <div
+              className="absolute border-2 border-primary"
+              style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
+            />
+            <div
+              onPointerDown={startDrag("tl")}
+              className="absolute w-5 h-5 rounded-full bg-primary border-2 border-white -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize"
+              style={{ left: `${topLeft.x * 100}%`, top: `${topLeft.y * 100}%` }}
+            />
+            <div
+              onPointerDown={startDrag("br")}
+              className="absolute w-5 h-5 rounded-full bg-primary border-2 border-white -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize"
+              style={{ left: `${bottomRight.x * 100}%`, top: `${bottomRight.y * 100}%` }}
+            />
+          </>
+        )}
       </div>
       <div className="flex gap-2">
         <button
