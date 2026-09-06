@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Vercel's Image Optimization has a monthly transformation quota on this
+    // plan; it's been exhausted twice now (see the "unoptimized got bolted
+    // on" comment below, from the first time this happened) — every
+    // next/image on the site 402s with OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED
+    // once that's hit, not just newly-added sources. Serving as-is (no
+    // resize/WebP conversion) is the zero-cost fix; remove this once the
+    // plan/quota is sorted and remotePatterns below is doing its job again.
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'images.pokemontcg.io' },
       { protocol: 'https', hostname: 'images.scrydex.com' },

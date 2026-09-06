@@ -17,14 +17,23 @@ export async function uploadCardImage(cardId: string, formData: FormData): Promi
   const user = await requireUserForAction();
   if (!ADMIN_ROLES.includes(user.role)) throw new Error("Not authorized");
 
-  const card = await prisma.card.findUnique({ where: { id: cardId } });
+  const card = await prisma.card.findUnique({
+    where: { id: cardId },
+    include: { set: { include: { series: { include: { franchise: true } } } } },
+  });
   if (!card) throw new Error("Card not found");
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) throw new Error("Please provide an image");
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { key, checksum, provider, bucket, filesize } = await storeCardImage(cardId, file.name, buffer);
+  const { key, checksum, provider, bucket, filesize } = await storeCardImage(
+    cardId,
+    card.set.series.franchise.name,
+    card.setId,
+    file.name,
+    buffer
+  );
 
   const media = await prisma.media.upsert({
     where: { originalHash: checksum },
