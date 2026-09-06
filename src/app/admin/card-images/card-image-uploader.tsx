@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ChangeEvent } from "react";
-import { Search, Upload, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { Search, Upload, CheckCircle2, Loader2, AlertTriangle, Camera, FolderOpen } from "lucide-react";
 import { uploadCardImage } from "@/lib/actions/catalog-images";
+import { CameraCapture, CropStep } from "./photo-capture";
 
 interface CardResult {
   id: string;
@@ -102,19 +103,34 @@ export function CardImageUploader() {
   );
 }
 
+type CaptureMode = "idle" | "camera" | "crop";
+
 function UploadForm({ card, onDone }: { card: CardResult; onDone: () => void }) {
   const [pending, startTransition] = useTransition();
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<CaptureMode>("idle");
+  const [rawImageUrl, setRawImageUrl] = useState<string | null>(null);
   const franchise = card.set.series.franchise.name;
+
+  function toCrop(raw: File) {
+    setRawImageUrl(URL.createObjectURL(raw));
+    setMode("crop");
+  }
 
   function onPick(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    toCrop(f);
+  }
+
+  function onCropped(cropped: File) {
+    setFile(cropped);
+    setPreview(URL.createObjectURL(cropped));
+    setMode("idle");
+    setRawImageUrl(null);
     setDone(false);
     setError(null);
   }
@@ -156,19 +172,31 @@ function UploadForm({ card, onDone }: { card: CardResult; onDone: () => void }) 
         </p>
       )}
 
-      <div className="flex items-center gap-3">
-        {preview && (
-          <img src={preview} alt="" className="w-16 h-24 object-cover rounded-lg border border-foreground/10 shrink-0" />
-        )}
-        {/* capture="environment" opens the rear camera directly on mobile; desktop browsers just fall back to a file picker. */}
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={onPick}
-          className="text-xs text-foreground/60 flex-1"
-        />
-      </div>
+      {mode === "camera" && <CameraCapture onCapture={toCrop} onCancel={() => setMode("idle")} />}
+
+      {mode === "crop" && rawImageUrl && (
+        <CropStep imageUrl={rawImageUrl} onConfirm={onCropped} onCancel={() => setMode("idle")} />
+      )}
+
+      {mode === "idle" && (
+        <div className="flex items-center gap-3">
+          {preview && (
+            <img src={preview} alt="" className="w-16 h-24 object-cover rounded-lg border border-foreground/10 shrink-0" />
+          )}
+          <div className="flex flex-wrap gap-2 flex-1">
+            <button
+              onClick={() => setMode("camera")}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-foreground/10 text-foreground text-xs font-medium"
+            >
+              <Camera size={13} /> Take Photo
+            </button>
+            <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-foreground/10 text-foreground text-xs font-medium cursor-pointer">
+              <FolderOpen size={13} /> Choose File
+              <input type="file" accept="image/*" onChange={onPick} className="hidden" />
+            </label>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-xs text-red-400">{error}</p>}
 

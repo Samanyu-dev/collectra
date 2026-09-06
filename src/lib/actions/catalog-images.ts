@@ -24,7 +24,7 @@ export async function uploadCardImage(cardId: string, formData: FormData): Promi
   if (!(file instanceof File) || file.size === 0) throw new Error("Please provide an image");
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { key, checksum, provider, bucket } = await storeCardImage(cardId, file.name, buffer, file.type || "image/jpeg");
+  const { key, checksum, provider, bucket, filesize } = await storeCardImage(cardId, file.name, buffer);
 
   const media = await prisma.media.upsert({
     where: { originalHash: checksum },
@@ -43,8 +43,8 @@ export async function uploadCardImage(cardId: string, formData: FormData): Promi
       // immediately so it wins getPrimaryMedia's ranking right away.
       verificationStatus: "AUTO_VERIFIED",
       moderatorVerified: true,
-      mimeType: file.type || "image/jpeg",
-      filesize: file.size,
+      mimeType: "image/jpeg",
+      filesize,
     },
   });
 
